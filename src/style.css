@@ -1,0 +1,239 @@
+:root {
+  --el-color-primary: #2563eb;
+  font-family:
+    Inter, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  color: #1f2937;
+  background: #f5f7fa;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  min-width: 320px;
+  background: #f5f7fa;
+}
+
+.el-card {
+  border-color: #edf0f5;
+}
+
+.el-card__header {
+  padding: 18px 20px;
+  border-bottom-color: #edf0f5;
+}
+
+.el-card__body {
+  padding: 20px;
+}
+
+.el-table th.el-table__cell {
+  background: #f8fafc;
+  color: #374151;
+  font-weight: 600;
+}
+/* ===== 全站标签五色体系（蓝/绿/橙/红/灰，浅色底+同色文字） ===== */
+.el-tag {
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 4px;
+  border: none;
+  font-weight: 500;
+}
+
+.el-tag.el-tag--primary,
+.el-tag.el-tag--success,
+.el-tag.el-tag--warning,
+.el-tag.el-tag--danger,
+.el-tag.el-tag--info {
+  border-color: transparent;
+}
+
+/* 默认无类型 → 灰色 */
+.el-tag {
+  background: rgba(243,244,246,0.5);
+  color: #4b5563;
+}
+
+.el-tag.el-tag--primary {
+  background: rgba(232,241,255,0.5);
+  color: #2563eb;
+}
+
+.el-tag.el-tag--success {
+  background: rgba(220,252,231,0.5);
+  color: #16a34a;
+}
+
+.el-tag.el-tag--warning {
+  background: rgba(255,244,229,0.5);
+  color: #f97316;
+}
+
+.el-tag.el-tag--danger {
+  background: rgba(254,240,240,0.5);
+  color: #f5222d;
+}
+
+.el-tag.el-tag--info {
+  background: rgba(243,244,246,0.5);
+  color: #4b5563;
+}
+
+/* effect=dark/plain 同样统一为浅色风格 */
+.el-tag.el-tag--dark,
+.el-tag.el-tag--plain {
+  background: var(--tag-soft-bg, rgba(243,244,246,0.5));
+  color: var(--tag-soft-color, #4b5563);
+  border-color: transparent;
+}
+
+.el-tag.el-tag--primary.el-tag--dark,
+.el-tag.el-tag--primary.el-tag--plain { --tag-soft-bg: rgba(232,241,255,0.5); --tag-soft-color: #2563eb; }
+
+.el-tag.el-tag--success.el-tag--dark,
+.el-tag.el-tag--success.el-tag--plain { --tag-soft-bg: rgba(220,252,231,0.5); --tag-soft-color: #16a34a; }
+
+.el-tag.el-tag--warning.el-tag--dark,
+.el-tag.el-tag--warning.el-tag--plain { --tag-soft-bg: rgba(255,244,229,0.5); --tag-soft-color: #f97316; }
+
+.el-tag.el-tag--danger.el-tag--dark,
+.el-tag.el-tag--danger.el-tag--plain { --tag-soft-bg: rgba(254,240,240,0.5); --tag-soft-color: #f5222d; }
+
+.el-tag.el-tag--info.el-tag--dark,
+.el-tag.el-tag--info.el-tag--plain { --tag-soft-bg: rgba(243,244,246,0.5); --tag-soft-color: #4b5563; }
+
+/* 标签内图标/关闭图标跟随文字色 */
+.el-tag .el-icon { color: inherit; }
+.el-tag .el-tag__close { color: inherit; }
+/* ===== 全站分页：白底描边方块 + 当前页浅蓝填充 + 条数选择器 ===== */
+.el-pagination {
+  --el-pagination-button-bg-color: #fff;
+  gap: 6px;
+  font-weight: 400;
+}
+
+.el-pagination .el-pagination__total {
+  margin-right: 10px;
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+.el-pagination.is-background .btn-prev,
+.el-pagination.is-background .btn-next,
+.el-pagination.is-background .el-pager li {
+  min-width: 32px;
+  height: 32px;
+  margin: 0;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  color: #4b5563;
+  font-weight: 400;
+}
+
+.el-pagination.is-background .btn-prev:disabled,
+.el-pagination.is-background .btn-next:disabled {
+  background: #fff;
+  color: #c0c4cc;
+}
+
+.el-pagination.is-background .el-pager li.is-active {
+  background: #e8f1ff;
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.el-pagination.is-background .el-pager li:hover,
+.el-pagination.is-background .btn-prev:hover,
+.el-pagination.is-background .btn-next:hover {
+  color: #2563eb;
+  border-color: #2563eb;
+}
+
+/* 每页条数选择器：白底描边方块 */
+.el-pagination .el-pagination__sizes .el-select__wrapper {
+  min-width: 108px;
+  height: 32px;
+  background: #fff;
+  box-shadow: 0 0 0 1px #e5e7eb inset;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.el-pagination .el-pagination__sizes .el-select__wrapper:hover {
+  box-shadow: 0 0 0 1px #2563eb inset;
+}
+
+.el-pagination .el-pagination__sizes {
+  margin: 0 0 0 10px;
+}
+/* 列表分页统一容器 */
+.list-pager {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+/* 全站按钮统一圆角 */
+.el-button {
+  border-radius: 4px !important;
+}
+
+/* ===== 全站 Tabs：大号下划线风格 ===== */
+.el-tabs__nav-wrap::after {
+  height: 1px;
+  background-color: #e5e7eb;
+}
+
+.el-tabs__item {
+  height: 54px;
+  line-height: 54px;
+  padding: 0 28px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.el-tabs__item:hover,
+.el-tabs__item.is-active {
+  color: #2563eb;
+}
+
+.el-tabs__active-bar {
+  height: 3px;
+  border-radius: 0;
+  background-color: #2563eb;
+}
+.el-tabs__item{
+  font-size: 15px;
+  height: 40px;
+  line-height: 40px;
+}
+/* ===== 表格操作栏图标按钮（参考医生管理页） ===== */
+.el-table .el-button.is-link,
+.el-table .el-button.is-text {
+  height: auto;
+  padding: 2px;
+}
+
+.el-table .el-button > .el-icon {
+  margin-left: 12px;
+}
+.el-table .el-icon{
+ font-size: 1.2em;
+ line-height: 1.2em;
+}
