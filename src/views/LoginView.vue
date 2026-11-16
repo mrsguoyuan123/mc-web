@@ -79,7 +79,7 @@ const handleLogin = async () => {
       </div>
 
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" size="large">
-        <el-form-item label="登录角色" prop="role">
+        <!-- <el-form-item label="登录角色" prop="role">
           <el-select v-model="form.role" class="full-width" @change="handleRoleChange">
             <el-option
               v-for="item in roleOptions"
@@ -93,7 +93,7 @@ const handleLogin = async () => {
               </div>
             </el-option>
           </el-select>
-        </el-form-item>
+        </el-form-item> -->
 
         <el-form-item label="用户名" prop="username">
           <el-input v-model="form.username" placeholder="请输入用户名" :prefix-icon="'User'" />
