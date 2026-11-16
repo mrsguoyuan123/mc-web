@@ -9,11 +9,13 @@
     "preview": "vite preview --configLoader native"
   },
   "dependencies": {
+    "bignumber.js": "^11.1.5",
+    "echarts": "^6.1.0",
     "element-plus": "^2.14.7",
+    "json-bigint": "^1.0.0",
     "pinia": "^4.1.0",
     "vue": "^3.5.42",
-    "vue-router": "^5.4.0",
-    "echarts": "^6.1.0"
+    "vue-router": "^5.4.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.8",
