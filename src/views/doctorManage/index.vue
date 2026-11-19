@@ -221,6 +221,7 @@ const { page: dmBindPage, pageSize: dmBindSize, pagedData: pagedBindings, total:
           <el-table-column label="医院" prop="hospital" min-width="130" />
           <el-table-column label="科室" prop="dept" min-width="100" />
           <el-table-column label="电话" prop="phone" min-width="130" />
+            <el-table-column label="状态" prop="status" min-width="130" />
           <el-table-column label="上级医生" min-width="90">
             <template #default="{ row }">{{ row.superior || '-' }}</template>
           </el-table-column>
@@ -238,6 +239,7 @@ const { page: dmBindPage, pageSize: dmBindSize, pagedData: pagedBindings, total:
               <el-tooltip content="查看团队结构" placement="top">
                 <el-button type="primary" link @click="openTeam(row)"><el-icon><Share /></el-icon></el-button>
               </el-tooltip>
+              
             </template>
           </el-table-column>
           <template #empty>

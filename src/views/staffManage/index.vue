@@ -1,72 +1,155 @@
 <script setup>
-import { useTablePage } from '../../composables/useTablePage'
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, Search, RefreshLeft, Edit, Key } from '@element-plus/icons-vue'
+import {
+  getStaffPage,
+  createStaff,
+  updateStaffById,
+  updateStaffStatusById,
+  resetStaffPasswordById,
+  replaceStaffRolesById,
+  getRolePage
+} from '../../api/index.js'
 
-const roles = ['客服', '驻点', '健康照护师']
-const serviceLevels = ['初级客服', '中级客服', '高级客服']
-const roleTag = { 客服: 'primary', 驻点: 'info', 健康照护师: 'success' }
+// 弹窗人员类型：客服 CS / 陪诊师 CAREGIVER / 普通员工 GENERAL
+const PERSON_TYPE_OPTIONS = [
+  { value: 'CS', label: '客服' },
+  { value: 'CAREGIVER', label: '陪诊师' },
+  { value: 'GENERAL', label: '普通员工' }
+]
+// 列表筛选用完整四类（AGENTS.md 枚举）
+const PERSON_TYPE_FILTER = [
+  { value: 'CS', label: '客服' },
+  { value: 'CAREGIVER', label: '陪诊师' },
+  { value: 'GENERAL', label: '普通员工' },
+  { value: 'DOCTOR', label: '医生' }
+]
+// 等级下拉：初级/中级/高级客服 + 客服主管
+const LEVEL_OPTIONS = ['初级客服', '中级客服', '高级客服', '客服主管']
+// 仅客服有等级；陪诊师/普通员工改为负责区域输入框
+const isCustomerService = computed(() => form.personType === 'CS')
+const personTypeLabel = (value) =>
+  PERSON_TYPE_FILTER.find((item) => item.value === value)?.label || value || '-'
+const STATUS_TEXT = { 1: '启用', 0: '停用' }
 
-// 模拟员工数据
-const staffList = ref([
-  { id: 1, name: '张小美', role: '客服', level: '高级客服', username: 'zhangxm', phone: '13800138001', enabled: true },
-  { id: 2, name: '李小华', role: '客服', level: '中级客服', username: 'lixh', phone: '13800138002', enabled: true },
-  { id: 3, name: '王驻点', role: '驻点', level: '', provinces: 2, departments: 3, username: 'wangzd', phone: '13800138003', enabled: false },
-  { id: 4, name: '赵客服', role: '客服', level: '初级客服', username: 'zhaokf', phone: '13800138004', enabled: true },
-  { id: 5, name: '刘驻点', role: '驻点', level: '', provinces: 2, departments: 3, username: 'liuzd', phone: '13800138005', enabled: true },
-  { id: 6, name: '孙健康照护师', role: '健康照护师', level: '', provinces: 1, departments: 2, username: 'sunhg', phone: '13800138006', enabled: true },
-  { id: 7, name: '周护理', role: '健康照护师', level: '', provinces: 1, departments: 2, username: 'zhouhl', phone: '13800138007', enabled: true }
-])
-
-// 搜索与角色筛选
-const keyword = ref('')
-const filterRole = ref('')
-
-const filteredStaff = computed(() => {
-  const word = keyword.value.trim()
-  return staffList.value.filter((s) => {
-    const matchWord =
-      !word ||
-      [s.name, s.username, s.phone].some((v) => v.includes(word))
-    const matchRole = !filterRole.value || s.role === filterRole.value
-    return matchWord && matchRole
-  })
+// 权限角色下拉 GET /roles（启用角色，PC 端可选；id 为雪花 ID 字符串）
+const roleOptions = ref([])
+const roleNameMap = computed(() => {
+  const map = {}
+  roleOptions.value.forEach((role) => { map[role.id] = role.name })
+  return map
 })
 
-// 等级/负责区域展示
-const scopeText = (row) =>
-  row.role === '客服'
-    ? row.level
-    : `省份: ${row.provinces} 个  科室: ${row.departments} 个`
+// 服务端分页与列表
+const loading = ref(false)
+const tableData = ref([])
+const total = ref(0)
+const page = ref(1)
+const pageSize = ref(10)
 
-// 账号开关
-const onStatusChange = (row) => {
-  ElMessage.success(`${row.name} 账号已${row.enabled ? '开启' : '关闭'}`)
+// 筛选
+const keyword = ref('')
+const filterPersonType = ref('')
+const filterRoleId = ref('')
+const filterStatus = ref('')
+
+const buildQuery = () => {
+  const params = { page: page.value, pageSize: pageSize.value }
+  const word = keyword.value.trim()
+  if (word) params.keyword = word
+  if (filterPersonType.value) params.personType = filterPersonType.value
+  // 雪花 ID 始终字符串，不转数字
+  if (filterRoleId.value) params.roleId = String(filterRoleId.value)
+  if (filterStatus.value !== '') params.status = Number(filterStatus.value)
+  return params
 }
 
-// 添加/编辑弹窗
+const fetchRoles = async () => {
+  try {
+    const res = await getRolePage({ page: 1, pageSize: 100, status: 1 })
+    roleOptions.value = res?.list || []
+  } catch {
+    roleOptions.value = []
+  }
+}
+
+const fetchList = async () => {
+  loading.value = true
+  try {
+    const res = await getStaffPage(buildQuery())
+    tableData.value = res?.list || []
+    total.value = Number(res?.total) || 0
+  } catch {
+    tableData.value = []
+    total.value = 0
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleSearch = () => { page.value = 1; fetchList() }
+const handleReset = () => {
+  keyword.value = ''
+  filterPersonType.value = ''
+  filterRoleId.value = ''
+  filterStatus.value = ''
+  page.value = 1
+  fetchList()
+}
+const handlePageChange = (p) => { page.value = p; fetchList() }
+const handleSizeChange = (size) => { pageSize.value = size; page.value = 1; fetchList() }
+
+// 权限角色标签：roleAssignments 优先，回退主角色
+const roleTagsOf = (row) => {
+  if (Array.isArray(row.roleAssignments) && row.roleAssignments.length) {
+    return row.roleAssignments.map(
+      (item) => item.roleName || roleNameMap.value[item.roleId] || item.roleCode || item.roleId
+    )
+  }
+  return row.role ? [row.role] : []
+}
+const formatTime = (value) => (value ? String(value).replace('T', ' ').slice(0, 19) : '-')
+
+// 新增/编辑共用弹窗
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref()
+const submitting = ref(false)
 
 const createForm = () => ({
-  id: null,
+  id: '',
   name: '',
   phone: '',
   username: '',
-  role: '客服',
-  level: '初级客服'
+  password: '',
+  roleId: '',
+  personType: 'CS',
+  level: '',
+  area: '',
+  email: '',
+  status: 1
 })
 const form = reactive(createForm())
 
 const rules = {
   name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
+  phone: [{ required: true, pattern: /^1\d{10}$/, message: '请输入正确的手机号', trigger: 'blur' }],
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  phone: [{ pattern: /^1\d{10}$/, message: '请输入正确的手机号', trigger: 'blur' }],
-  role: [{ required: true, message: '请选择角色', trigger: 'change' }]
+  roleId: [{ required: true, message: '请选择权限角色', trigger: 'change' }],
+  personType: [{ required: true, message: '请选择人员类型', trigger: 'change' }]
 }
 
 const resetForm = () => Object.assign(form, createForm())
+
+// 切换人员类型时清空不适用的等级/负责区域，避免脏数据提交
+const handlePersonTypeChange = (value) => {
+  if (value === 'CS') {
+    form.area = ''
+  } else {
+    form.level = ''
+  }
+}
 
 const openAdd = () => {
   resetForm()
@@ -76,143 +159,229 @@ const openAdd = () => {
 }
 
 const openEdit = (row) => {
-  Object.assign(form, {
-    id: row.id,
-    name: row.name,
-    phone: row.phone,
-    username: row.username,
-    role: row.role,
-    level: row.level || '初级客服'
-  })
+  resetForm()
   isEdit.value = true
+  form.id = String(row.id)
+  form.name = row.name || ''
+  form.phone = row.phone || ''
+  form.username = row.username || ''
+  form.personType = row.personType || 'CS'
+  form.email = row.email || ''
+  form.status = Number(row.status) === 0 ? 0 : 1
+  // levelOrArea 兼容“等级”或“负责区域”单值；department 为负责区域
+  if (form.personType === 'CS') {
+    form.level = LEVEL_OPTIONS.includes(row.levelOrArea) ? row.levelOrArea : ''
+    form.area = ''
+  } else {
+    form.level = ''
+    form.area = row.department || row.levelOrArea || ''
+  }
+  // 单选回显：取主角色（primaryFlag=1）否则第一个，保持字符串 id
+  const assignments = Array.isArray(row.roleAssignments) ? row.roleAssignments : []
+  const primary = assignments.find((item) => Number(item.primaryFlag) === 1) || assignments[0]
+  form.roleId = primary ? String(primary.roleId) : ''
   dialogVisible.value = true
   formRef.value?.clearValidate()
 }
 
-const handleSubmit = () => {
-  formRef.value.validate((valid) => {
-    if (!valid) return
+// 等级 + 负责区域合并到 levelOrArea（单字段承载，按截图“等级/负责区域”）
+const mergeLevelOrArea = () => form.level || form.area || ''
+// 角色全量替换载荷（roleId 雪花字符串）
+const buildAssignments = () => (form.roleId ? [{ roleId: String(form.roleId) }] : [])
+
+const handleSubmit = async () => {
+  await formRef.value.validate()
+  submitting.value = true
+  try {
+    const basePayload = {
+      username: form.username,
+      name: form.name,
+      phone: form.phone,
+      personType: form.personType,
+      levelOrArea: mergeLevelOrArea(),
+      department: form.area || undefined,
+      email: form.email,
+      status: form.status
+    }
     if (isEdit.value) {
-      const target = staffList.value.find((s) => s.id === form.id)
-      Object.assign(target, {
-        name: form.name,
-        phone: form.phone,
-        username: form.username,
-        role: form.role,
-        level: form.role === '客服' ? form.level : ''
-      })
+      // 编辑：基础信息接口（密码不在此处理）
+      await updateStaffById(form.id, basePayload)
+      // 角色全量替换 PUT /staff/{id}/roles
+      await replaceStaffRolesById(form.id, buildAssignments())
+      // 编辑态填写了新密码才调用重置密码接口
+      if (form.password) {
+        await resetStaffPasswordById(form.id, form.password)
+      }
       ElMessage.success('员工信息已更新')
     } else {
-      staffList.value.unshift({
-        ...form,
-        level: form.role === '客服' ? form.level : '',
-        provinces: form.role === '客服' ? undefined : 0,
-        departments: form.role === '客服' ? undefined : 0,
-        enabled: true,
-        id: Date.now()
+      const newId = await createStaff({
+        ...basePayload,
+        password: form.password || undefined,
+        roleAssignments: buildAssignments()
       })
+      if (form.roleId && newId) {
+        await replaceStaffRolesById(String(newId), buildAssignments())
+      }
       ElMessage.success('员工添加成功')
     }
     dialogVisible.value = false
-  })
+    fetchList()
+  } catch (err) {
+    ElMessage.error(err?.message || '保存失败')
+  } finally {
+    submitting.value = false
+  }
 }
 
-const handleDelete = (row) => {
-  ElMessageBox.confirm(`确认删除员工「${row.name}」吗？`, '删除确认', {
-    type: 'warning',
-    confirmButtonText: '删除',
-    cancelButtonText: '取消'
-  }).then(() => {
-    staffList.value = staffList.value.filter((s) => s.id !== row.id)
-    ElMessage.success('员工已删除')
+// 启停账号
+const statusLoadingId = ref('')
+const onStatusChange = async (row) => {
+  const next = Number(row.status) === 1 ? 0 : 1
+  statusLoadingId.value = String(row.id)
+  try {
+    await updateStaffStatusById(String(row.id), next)
+    row.status = next
+    ElMessage.success(`账号已${next === 1 ? '启用' : '停用'}`)
+  } catch (err) {
+    row.status = next === 1 ? 0 : 1
+    ElMessage.error(err?.message || '状态更新失败')
+  } finally {
+    statusLoadingId.value = ''
+  }
+}
+
+// 表格行内重置密码
+const handleResetPassword = (row) => {
+  ElMessageBox.prompt(`将为「${row.name}」重置登录密码，请输入新密码（留空则使用默认密码 123456）`, '重置密码', {
+    confirmButtonText: '确认重置',
+    cancelButtonText: '取消',
+    inputPattern: /^$|^[\S]{6,20}$/,
+    inputErrorMessage: '密码长度需为 6-20 位',
+    inputPlaceholder: '新密码（可留空）'
+  }).then(async ({ value }) => {
+    try {
+      await resetStaffPasswordById(String(row.id), value || '123456')
+      ElMessage.success(`密码重置成功，新密码已发送至${row.phone}`)
+    } catch (err) {
+      ElMessage.error(err?.message || '密码重置失败')
+    }
   }).catch(() => {})
 }
-const { page: smPage, pageSize: smSize, pagedData: pagedStaffList, total: smTotal } = useTablePage(filteredStaff)
+
+onMounted(() => {
+  fetchRoles()
+  fetchList()
+})
 </script>
-<template>
+
+﻿<template>
   <div class="staff-page">
     <div class="page-header">
       <div>
         <h1>员工管理</h1>
-        <p>管理客服和驻点员工，设置账号状态</p>
+        <p>管理员工账号、权限角色、人员类型和账号状态。</p>
       </div>
-      <el-button type="primary" size="large" @click="openAdd">
-        <el-icon><Plus /></el-icon>
-        添加员工
-      </el-button>
+      <el-button type="primary" :icon="Plus" @click="openAdd">新增员工</el-button>
     </div>
 
-    <!-- 搜索筛选 -->
     <div class="panel filter-card">
       <div class="filter-row">
-        <el-input v-model="keyword" class="search-input" size="large" clearable
-          placeholder="搜索员工姓名、用户名或电话...">
-          <template #prefix>
-            <el-icon><Search /></el-icon>
-          </template>
-        </el-input>
-        <el-select v-model="filterRole" class="filter-select" size="large" clearable placeholder="全部角色">
-          <el-option v-for="role in roles" :key="role" :label="role" :value="role" />
+        <el-input
+          v-model="keyword"
+          class="search-input"
+          placeholder="搜索员工姓名、用户名或手机号"
+          clearable
+          :prefix-icon="Search"
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
+        />
+        <el-select v-model="filterRoleId" class="filter-select" placeholder="全部权限角色" clearable @change="handleSearch">
+          <el-option v-for="role in roleOptions" :key="role.id" :label="role.name" :value="role.id" />
         </el-select>
+        <el-select v-model="filterPersonType" class="filter-select" placeholder="全部人员类型" clearable @change="handleSearch">
+          <el-option v-for="item in PERSON_TYPE_FILTER" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+        <el-select v-model="filterStatus" class="filter-select" placeholder="全部状态" clearable @change="handleSearch">
+          <el-option label="启用" :value="1" />
+          <el-option label="停用" :value="0" />
+        </el-select>
+        <el-button :icon="RefreshLeft" @click="handleReset">重置</el-button>
       </div>
     </div>
 
-    <!-- 员工列表 -->
     <div class="panel table-card">
-      <el-table :data="pagedStaffList" stripe>
-        <el-table-column prop="name" label="姓名" min-width="130" show-overflow-tooltip />
-        <el-table-column label="角色" width="120" align="center">
+      <el-table v-loading="loading" :data="tableData" style="width: 100%">
+        <el-table-column label="姓名" min-width="110">
           <template #default="{ row }">
-            <el-tag :type="roleTag[row.role]" size="small" effect="dark" round>{{ row.role }}</el-tag>
+            <div style="display:flex;align-items:center;gap:8px">
+              <el-avatar :size="30">{{ (row.name || '-').slice(0, 1) }}</el-avatar>
+              <span style="font-weight:600">{{ row.name }}</span>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column label="等级/负责区域" min-width="180">
+        <el-table-column label="权限角色" min-width="160">
           <template #default="{ row }">
-            <el-tag v-if="row.role === '客服'" size="small" effect="plain" round>{{ row.level }}</el-tag>
-            <span v-else class="scope-text">{{ scopeText(row) }}</span>
+            <el-tag v-for="tag in roleTagsOf(row)" :key="tag" size="small" class="role-tag" type="primary">{{ tag }}</el-tag>
+            <span v-if="roleTagsOf(row).length === 0" style="color:#94a3b8">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="username" label="用户名" min-width="120" show-overflow-tooltip />
-        <el-table-column prop="phone" label="电话" width="150" />
-        <el-table-column label="账号状态" width="140" align="center">
+        <el-table-column label="人员类型" min-width="100">
           <template #default="{ row }">
-            <el-switch v-model="row.enabled" @change="onStatusChange(row)" />
-            <span class="status-text" :class="{ on: row.enabled, off: !row.enabled }">
-              {{ row.enabled ? '开启' : '关闭' }}
+            <el-tag size="small" type="info">{{ personTypeLabel(row.personType) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="等级/负责区域" min-width="160">
+          <template #default="{ row }">
+            <span class="scope-text">{{ row.levelOrArea || row.department || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="用户名" prop="username" min-width="120" />
+        <el-table-column label="电话" prop="phone" min-width="130" />
+        <el-table-column label="账号状态" min-width="120">
+          <template #default="{ row }">
+            <el-switch
+              :model-value="Number(row.status) === 1"
+              :loading="statusLoadingId === String(row.id)"
+              @change="onStatusChange(row)"
+            />
+            <span class="status-text" :class="Number(row.status) === 1 ? 'on' : 'off'">
+              {{ STATUS_TEXT[Number(row.status)] || '-' }}
             </span>
           </template>
         </el-table-column>
-                <el-table-column label="操作" width="110" fixed="right" align="center">
+        <el-table-column label="创建时间" min-width="170">
+          <template #default="{ row }">{{ formatTime(row.joinDate || row.createTime) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="210" fixed="right">
           <template #default="{ row }">
-            <el-tooltip content="编辑" placement="top">
-              <el-button type="primary" link @click="openEdit(row)"><el-icon><Edit /></el-icon></el-button>
-            </el-tooltip>
-            <el-tooltip content="删除" placement="top">
-              <el-button type="danger" link @click="handleDelete(row)"><el-icon><Delete /></el-icon></el-button>
-            </el-tooltip>
+            <el-button type="primary" link :icon="Edit" @click="openEdit(row)">编辑</el-button>
+            <el-button type="warning" link :icon="Key" @click="handleResetPassword(row)">重置密码</el-button>
           </template>
         </el-table-column>
         <template #empty>
           <el-empty description="暂无符合条件的员工" :image-size="90" />
         </template>
       </el-table>
+
       <el-pagination
         class="list-pager"
         background
-        v-model:current-page="smPage"
-        v-model:page-size="smSize"
+        :current-page="page"
+        :page-size="pageSize"
         :page-sizes="[10, 20, 50, 100]"
-        :total="smTotal"
+        :total="total"
         layout="total, prev, pager, next, sizes"
-        @size-change="smPage = 1"
+        @current-change="handlePageChange"
+        @size-change="handleSizeChange"
       />
     </div>
-    <!-- 添加/编辑弹窗 -->
-    <el-dialog v-model="dialogVisible" width="560px" class="staff-dialog" @closed="resetForm">
+
+    <!-- 新增/编辑共用弹窗 -->
+    <el-dialog v-model="dialogVisible" width="720px" class="staff-dialog" @closed="resetForm">
       <template #header>
         <div class="dialog-heading">
-          <h3>{{ isEdit ? '编辑员工信息' : '添加员工' }}</h3>
-          <p>{{ isEdit ? `编辑 ${form.name} 的员工信息` : '填写员工基本信息' }}</p>
+          <h3>{{ isEdit ? `编辑员工 · ${form.name}` : '新增员工' }}</h3>
+          <p>{{ isEdit ? '更新员工权限角色、人员类型与负责范围。' : '填写员工基本信息并分配权限角色。' }}</p>
         </div>
       </template>
 
@@ -220,33 +389,66 @@ const { page: smPage, pageSize: smSize, pagedData: pagedStaffList, total: smTota
         <el-form-item label="姓名" prop="name">
           <el-input v-model="form.name" size="large" placeholder="请输入姓名" />
         </el-form-item>
-        <el-form-item label="电话" prop="phone">
-          <el-input v-model="form.phone" size="large" placeholder="请输入电话" />
+        <el-form-item label="手机号" prop="phone">
+          <el-input v-model="form.phone" size="large" placeholder="请输入手机号" maxlength="11" />
         </el-form-item>
         <el-form-item label="用户名" prop="username">
-          <el-input v-model="form.username" size="large" placeholder="请输入用户名" />
+          <el-input v-model="form.username" size="large" placeholder="请输入用户名" :disabled="isEdit" />
         </el-form-item>
-        <el-form-item label="角色" prop="role">
-          <el-select v-model="form.role" class="full-control" placeholder="请选择角色">
-            <el-option v-for="role in roles" :key="role" :label="role" :value="role" />
+        <el-form-item :label="isEdit ? '重置密码' : '初始密码'">
+          <el-input
+            v-model="form.password"
+            size="large"
+            :placeholder="isEdit ? '无需重置可留空' : '留空默认 123456'"
+            show-password
+          />
+        </el-form-item>
+        <el-form-item label="权限角色" prop="roleId">
+          <el-select v-model="form.roleId" class="full-control" placeholder="请选择权限角色（单选）">
+            <el-option v-for="role in roleOptions" :key="role.id" :label="role.name" :value="role.id" />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="form.role === '客服'" label="客服等级" prop="level" class="full">
-          <el-select v-model="form.level" class="full-control" placeholder="请选择客服等级">
-            <el-option v-for="level in serviceLevels" :key="level" :label="level" :value="level" />
+        <el-form-item label="人员类型" prop="personType">
+          <el-select
+            v-model="form.personType"
+            class="full-control"
+            placeholder="请选择人员类型"
+            @change="handlePersonTypeChange"
+          >
+            <el-option v-for="item in PERSON_TYPE_OPTIONS" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
+        <el-form-item v-if="isCustomerService" label="等级">
+          <el-select v-model="form.level" class="full-control" clearable placeholder="请选择等级">
+            <el-option v-for="level in LEVEL_OPTIONS" :key="level" :label="level" :value="level" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-else label="负责区域">
+          <el-input v-model="form.area" size="large" placeholder="如：东城区、朝阳区" />
+        </el-form-item>
+        <el-form-item label="账号状态" class="full">
+          <el-switch v-model="form.status" :active-value="1" :inactive-value="0" active-text="允许员工登录系统" inline-prompt />
+        </el-form-item>
+        <el-alert
+          class="full staff-tip"
+          type="info"
+          :closable="false"
+          show-icon
+          title="权限与身份相互独立"
+          description="权限角色决定员工可以访问哪些菜单和接口；人员类型用于区分客服、陪诊师等员工业务身份，用户服务关系不在此处维护。"
+        />
       </el-form>
 
       <template #footer>
         <el-button size="large" @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" size="large" @click="handleSubmit">
-          {{ isEdit ? '保存修改' : '确认添加' }}
+        <el-button type="primary" size="large" :loading="submitting" @click="handleSubmit">
+          {{ isEdit ? '保存修改' : '确认新增' }}
         </el-button>
       </template>
     </el-dialog>
   </div>
 </template>
+
 <style scoped>
 .staff-page {
   --el-color-primary: #2563eb;
@@ -396,6 +598,14 @@ const { page: smPage, pageSize: smSize, pagedData: pagedStaffList, total: smTota
   .staff-form .full {
     grid-column: 1;
   }
+}
+
+.role-tag {
+  margin: 2px 4px 2px 0;
+}
+
+.staff-tip {
+  margin-top: 4px;
 }
 </style>
 

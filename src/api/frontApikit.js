@@ -17,6 +17,15 @@ const SUCCESS_CODE = 0
 const UNAUTHORIZED_CODE = 401
 const REFRESH_INVALID_CODE = 402
 
+// 业务错误统一上报钩子（由入口注入 Element Plus 消息，保持本封装零 UI 耦合）；401/402 走刷新/跳登录，不重复提示
+let businessErrorHandler = null
+export const setBusinessErrorHandler = (handler) => {
+  businessErrorHandler = typeof handler === 'function' ? handler : null
+}
+const reportBusinessError = (error) => {
+  if (typeof businessErrorHandler === 'function') businessErrorHandler(error)
+}
+
 export const BASE_URL = (import.meta.env && import.meta.env.VITE_API_BASE_URL) || '/api/v1'
 const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER // 9007199254740991（16 位）
 const MIN_SAFE_INTEGER = Number.MIN_SAFE_INTEGER
@@ -345,7 +354,11 @@ function resolveBusiness(body, response) {
   if (body.code === SUCCESS_CODE) {
     return body.data
   }
-  throw new ApiError(body.message || '请求失败', body.code, body.data ?? null, response)
+  const businessError = new ApiError(body.message || '请求失败', body.code, body.data ?? null, response)
+  if (body.code !== UNAUTHORIZED_CODE && body.code !== REFRESH_INVALID_CODE) {
+    reportBusinessError(businessError)
+  }
+  throw businessError
 }
 
 /* -------------------------------------------------------------------------- */
@@ -405,7 +418,9 @@ export async function request(url, options = {}) {
   try {
     response = await fetch(buildUrl(url, params), { method: method.toUpperCase(), headers, body })
   } catch (networkError) {
-    throw new ApiError(networkError.message || '网络异常，请稍后重试', -1, null, null)
+    const networkApiError = new ApiError(networkError.message || '网络异常，请稍后重试', -1, null, null)
+    reportBusinessError(networkApiError)
+    throw networkApiError
   }
 
   const parsed = await parseResponse(response)

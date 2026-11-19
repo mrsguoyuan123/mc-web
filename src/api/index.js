@@ -392,6 +392,12 @@ export {
 export {
   getPatientPage,
   exportPatients,
+  batchAssignPatientsCs,
+  batchArchivePatients,
+  exportSelectedPatients,
+  getPatientDetailById,
+  updatePatientDetail,
+  recognizePatientAttachment,
   createPatient,
   getPatientById,
   updatePatientById,
@@ -468,3 +474,9 @@ export {
   getMedicalRecordScanResultById,
   confirmMedicalRecord
 } from './modules/user.js'
+
+/* 沟通记录（只读）模块（2 个，接口路径待后端确认） */
+export {
+  getConversationMessages,
+  getConversationMembers
+} from './modules/chatHistory.js'

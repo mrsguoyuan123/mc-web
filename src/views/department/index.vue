@@ -1,79 +1,136 @@
 <script setup>
-import { useTablePage } from '../../composables/useTablePage'
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  getDictOverview,
+  getDictHospitalPage,
+  getDictAreaList,
+  getDictDepartmentPage,
+  createDictDepartment,
+  updateDictDepartmentById,
+  deleteDictDepartmentById
+} from '../../api/index.js'
 
-// 字典项
-const categories = ['内科', '外科', '妇产科', '儿科', '五官科', '急诊科', '中医科', '肿瘤科']
-const statuses = ['正常', '停用']
-
-const hospitalCampusMap = {
-  北京协和医院: ['东院区', '西院区'],
-  北京大学人民医院: ['西直门院区', '白塔寺院区'],
-  复旦大学附属中山医院: ['总院', '东院分部'],
-  广东省人民医院: ['总院', '东病区'],
-  温州眼科医院: ['总院', '分院']
-}
-const hospitalOptions = Object.keys(hospitalCampusMap)
-
-// 模拟数据
-const departments = ref([
-  { id: 1, name: '心内科', category: '内科', hospital: '北京协和医院', campus: '东院区', director: '张主任', phone: '010-69156114-2101', doctorCount: 25, bedCount: 80, status: '正常', intro: '专注心血管疾病诊疗，拥有先进的介入治疗设备' },
-  { id: 2, name: '骨科', category: '外科', hospital: '北京大学人民医院', campus: '西直门院区', director: '李主任', phone: '010-88324600-3201', doctorCount: 30, bedCount: 90, status: '正常', intro: '' },
-  { id: 3, name: '妇产科', category: '妇产科', hospital: '复旦大学附属中山医院', campus: '总院', director: '王主任', phone: '021-64041990-6601', doctorCount: 22, bedCount: 60, status: '正常', intro: '' },
-  { id: 4, name: '儿科', category: '儿科', hospital: '广东省人民医院', campus: '总院', director: '陈主任', phone: '020-83827812-5501', doctorCount: 18, bedCount: 50, status: '正常', intro: '' },
-  { id: 5, name: '眼科', category: '五官科', hospital: '温州眼科医院', campus: '总院', director: '刘主任', phone: '0577-88061366-8801', doctorCount: 20, bedCount: 70, status: '正常', intro: '' },
-  { id: 6, name: '神经外科', category: '外科', hospital: '北京协和医院', campus: '西院区', director: '赵主任', phone: '010-69156114-2109', doctorCount: 15, bedCount: 50, status: '正常', intro: '' }
-])
+// 科室类别枚举与后端 /dict/departments 对齐
+const categories = ['内科', '外科', '妇产科', '儿科', '其他']
+const STATUS_ENABLED = 1
+const STATUS_DISABLED = 0
+const STATUS_TEXT = { [STATUS_ENABLED]: '正常', [STATUS_DISABLED]: '停用' }
+const statuses = [STATUS_ENABLED, STATUS_DISABLED]
 
 // 筛选
 const keyword = ref('')
 const filterCategory = ref('')
-const filterHospital = ref('')
+const filterHospitalId = ref('')
 
-const filteredDepartments = computed(() => {
+// 服务端分页与列表
+const loading = ref(false)
+const tableData = ref([])
+const total = ref(0)
+const page = ref(1)
+const pageSize = ref(10)
+
+// 医院下拉：GET /dict/hospitals（id 为雪花字符串）
+const hospitalOptions = ref([])
+// 院区级联：GET /dict/areas 全量，按 hospitalId 过滤
+const areaOptions = ref([])
+const hospitalNameMap = computed(() => {
+  const map = {}
+  hospitalOptions.value.forEach((item) => { map[String(item.id)] = item.name })
+  return map
+})
+const areaNameMap = computed(() => {
+  const map = {}
+  areaOptions.value.forEach((item) => { map[String(item.id)] = item.name })
+  return map
+})
+
+// 机构概览统计：GET /dict/overview
+const overview = ref({ hospitalCount: 0, departmentCount: 0, doctorCount: 0, provinceCount: 0 })
+const stats = computed(() => [
+  { label: '科室总数', value: overview.value.departmentCount, unit: '个', desc: '已建科室字典', icon: 'Grid', theme: 'blue' },
+  { label: '覆盖医院', value: overview.value.hospitalCount, unit: '家', desc: '医疗机构总数', icon: 'OfficeBuilding', theme: 'red' },
+  { label: '医生总数', value: overview.value.doctorCount, unit: '位', desc: '在册医生字典', icon: 'FirstAidKit', theme: 'cyan' },
+  { label: '覆盖省份', value: overview.value.provinceCount, unit: '个', desc: '全国覆盖省份', icon: 'Location', theme: 'green' }
+])
+
+const buildQuery = () => {
+  const params = { page: page.value, pageSize: pageSize.value }
   const word = keyword.value.trim()
-  return departments.value.filter((item) => {
-    const matchWord =
-      !word ||
-      item.name.includes(word) ||
-      item.hospital.includes(word) ||
-      (item.director || '').includes(word)
-    const matchCategory = !filterCategory.value || item.category === filterCategory.value
-    const matchHospital = !filterHospital.value || item.hospital === filterHospital.value
-    return matchWord && matchCategory && matchHospital
-  })
-})
+  if (word) params.keyword = word
+  if (filterCategory.value) params.category = filterCategory.value
+  if (filterHospitalId.value) params.hospitalId = String(filterHospitalId.value)
+  return params
+}
 
-// 统计
-const stats = computed(() => {
-  const totalDoctors = departments.value.reduce((sum, d) => sum + d.doctorCount, 0)
-  const totalBeds = departments.value.reduce((sum, d) => sum + d.bedCount, 0)
-  return [
-    { label: '科室总数', value: departments.value.length, unit: '个', desc: '全部科室', icon: 'stethoscope', theme: 'blue' },
-    { label: '医生总数', value: totalDoctors, unit: '名', desc: '在岗医生', icon: 'UserFilled', theme: 'cyan' },
-    { label: '床位总数', value: totalBeds, unit: '张', desc: '科室床位', icon: 'FirstAidKit', theme: 'green' },
-    { label: '平均医生', value: Math.round(totalDoctors / departments.value.length), unit: '名', desc: '平均每科室', icon: 'User', theme: 'red' }
-  ]
-})
+const fetchHospitals = async () => {
+  try {
+    const res = await getDictHospitalPage({ page: 1, pageSize: 100, status: 1 })
+    hospitalOptions.value = res?.list || []
+  } catch {
+    hospitalOptions.value = []
+  }
+}
+
+const fetchAreas = async () => {
+  try {
+    areaOptions.value = await getDictAreaList() || []
+  } catch {
+    areaOptions.value = []
+  }
+}
+
+const fetchOverview = async () => {
+  try {
+    overview.value = (await getDictOverview()) || {}
+  } catch {
+    overview.value = {}
+  }
+}
+
+const fetchList = async () => {
+  loading.value = true
+  try {
+    const res = await getDictDepartmentPage(buildQuery())
+    tableData.value = res?.list || []
+    total.value = Number(res?.total) || 0
+  } catch {
+    tableData.value = []
+    total.value = 0
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleSearch = () => { page.value = 1; fetchList() }
+const handleReset = () => {
+  keyword.value = ''
+  filterCategory.value = ''
+  filterHospitalId.value = ''
+  page.value = 1
+  fetchList()
+}
+const handlePageChange = (p) => { page.value = p; fetchList() }
+const handleSizeChange = (size) => { pageSize.value = size; page.value = 1; fetchList() }
 
 // 弹窗表单
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref()
+const submitting = ref(false)
 
 const createForm = () => ({
-  id: null,
+  id: '',
   name: '',
   category: '',
-  hospital: '',
-  campus: '',
-  director: '',
+  hospitalId: '',
+  areaId: '',
+  headDoctor: '',
+  doctorCount: undefined,
+  bedCount: undefined,
   phone: '',
-  doctorCount: 0,
-  bedCount: 0,
-  status: '正常',
-  intro: ''
+  description: '',
+  status: STATUS_ENABLED
 })
 
 const form = reactive(createForm())
@@ -81,12 +138,14 @@ const form = reactive(createForm())
 const rules = {
   name: [{ required: true, message: '请输入科室名称', trigger: 'blur' }],
   category: [{ required: true, message: '请选择科室分类', trigger: 'change' }],
-  hospital: [{ required: true, message: '请选择所属医院', trigger: 'change' }],
-  campus: [{ required: true, message: '请选择所属院区', trigger: 'change' }],
-  phone: [{ pattern: /^[\d-]{7,20}$/, message: '请输入正确的联系电话', trigger: 'blur' }]
+  hospitalId: [{ required: true, message: '请选择所属医院', trigger: 'change' }],
+  phone: [{ pattern: /^[\d-]{7,15}$/, message: '请输入正确的联系电话', trigger: 'blur' }]
 }
 
-const campusOptions = computed(() => hospitalCampusMap[form.hospital] || [])
+// 按所选医院过滤院区
+const formAreaOptions = computed(() =>
+  form.hospitalId ? areaOptions.value.filter((item) => String(item.hospitalId) === String(form.hospitalId)) : []
+)
 
 const resetForm = () => Object.assign(form, createForm())
 
@@ -98,29 +157,58 @@ const openAdd = () => {
 }
 
 const openEdit = (row) => {
-  Object.assign(form, row)
+  resetForm()
+  form.id = String(row.id)
+  form.name = row.name || ''
+  form.category = row.category || ''
+  form.hospitalId = row.hospitalId ? String(row.hospitalId) : ''
+  form.areaId = row.areaId ? String(row.areaId) : ''
+  form.headDoctor = row.headDoctor || ''
+  form.doctorCount = row.doctorCount ?? undefined
+  form.bedCount = row.bedCount ?? undefined
+  form.phone = row.phone || ''
+  form.description = row.description || ''
+  form.status = Number(row.status) === STATUS_DISABLED ? STATUS_DISABLED : STATUS_ENABLED
   isEdit.value = true
   dialogVisible.value = true
   formRef.value?.clearValidate()
 }
 
-const onHospitalChange = () => {
-  form.campus = ''
-}
+// 切换医院时清空院区
+const handleHospitalChange = () => { form.areaId = '' }
 
-const handleSubmit = () => {
-  formRef.value.validate((valid) => {
-    if (!valid) return
+const buildPayload = () => ({
+  name: form.name,
+  category: form.category || undefined,
+  hospitalId: String(form.hospitalId),
+  areaId: form.areaId ? String(form.areaId) : undefined,
+  headDoctor: form.headDoctor || undefined,
+  doctorCount: form.doctorCount === undefined || form.doctorCount === '' ? undefined : Number(form.doctorCount),
+  bedCount: form.bedCount === undefined || form.bedCount === '' ? undefined : Number(form.bedCount),
+  phone: form.phone || undefined,
+  description: form.description || undefined,
+  status: form.status
+})
+
+const handleSubmit = async () => {
+  await formRef.value.validate()
+  submitting.value = true
+  try {
     if (isEdit.value) {
-      const target = departments.value.find((item) => item.id === form.id)
-      Object.assign(target, form)
+      await updateDictDepartmentById(form.id, buildPayload())
       ElMessage.success('科室信息已更新')
     } else {
-      departments.value.unshift({ ...form, id: Date.now() })
+      await createDictDepartment(buildPayload())
       ElMessage.success('科室添加成功')
     }
     dialogVisible.value = false
-  })
+    fetchList()
+    fetchOverview()
+  } catch (err) {
+    ElMessage.error(err?.message || '保存失败')
+  } finally {
+    submitting.value = false
+  }
 }
 
 const handleDelete = (row) => {
@@ -128,19 +216,32 @@ const handleDelete = (row) => {
     type: 'warning',
     confirmButtonText: '删除',
     cancelButtonText: '取消'
-  }).then(() => {
-    departments.value = departments.value.filter((item) => item.id !== row.id)
-    ElMessage.success('科室已删除')
+  }).then(async () => {
+    try {
+      await deleteDictDepartmentById(String(row.id))
+      ElMessage.success('科室已删除')
+      if (tableData.value.length === 1 && page.value > 1) page.value -= 1
+      fetchList()
+      fetchOverview()
+    } catch (err) {
+      ElMessage.error(err?.message || '删除失败')
+    }
   }).catch(() => {})
 }
-const { page: dpPage, pageSize: dpSize, pagedData: pagedDepartments, total: dpTotal } = useTablePage(filteredDepartments)
+
+onMounted(() => {
+  fetchHospitals()
+  fetchAreas()
+  fetchOverview()
+  fetchList()
+})
 </script>
 <template>
-  <div class="department-page">
+  <div class="hospital-page">
     <div class="page-header">
       <div>
         <h1>科室管理</h1>
-        <p>管理医院科室信息</p>
+        <p>维护医院科室字典信息</p>
       </div>
       <el-button type="primary" size="large" @click="openAdd">
         <el-icon><Plus /></el-icon>
@@ -157,13 +258,7 @@ const { page: dpPage, pageSize: dpSize, pagedData: pagedDepartments, total: dpTo
         </div>
         <div class="stat-bottom">
           <span class="stat-icon" :class="item.theme">
-            <svg v-if="item.icon === 'stethoscope'" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 12 0V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3" />
-              <path d="M8 15v1a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-4" />
-              <circle cx="20" cy="10" r="2" />
-            </svg>
-            <el-icon v-else><component :is="item.icon" /></el-icon>
+            <el-icon><component :is="item.icon" /></el-icon>
           </span>
           <span class="stat-desc">{{ item.desc }}</span>
         </div>
@@ -174,18 +269,27 @@ const { page: dpPage, pageSize: dpSize, pagedData: pagedDepartments, total: dpTo
     <div class="panel filter-card">
       <div class="card-label">筛选条件</div>
       <div class="filter-row">
-        <el-input v-model="keyword" class="search-input" size="large" clearable
-          placeholder="搜索科室名称、医院或主任...">
+        <el-input
+          v-model="keyword"
+          class="search-input"
+          size="large"
+          clearable
+          placeholder="搜索科室名称..."
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
+        >
           <template #prefix>
             <el-icon><Search /></el-icon>
           </template>
         </el-input>
-        <el-select v-model="filterCategory" class="filter-select" size="large" clearable placeholder="全部分类">
+        <el-select v-model="filterCategory" class="filter-select" size="large" clearable placeholder="全部分类" @change="handleSearch">
           <el-option v-for="category in categories" :key="category" :label="category" :value="category" />
         </el-select>
-        <el-select v-model="filterHospital" class="filter-select" size="large" clearable placeholder="全部医院">
-          <el-option v-for="hospital in hospitalOptions" :key="hospital" :label="hospital" :value="hospital" />
+        <el-select v-model="filterHospitalId" class="filter-select" size="large" clearable placeholder="全部医院" @change="handleSearch">
+          <el-option v-for="hospital in hospitalOptions" :key="hospital.id" :label="hospital.name" :value="hospital.id" />
         </el-select>
+        <el-button type="primary" size="large" @click="handleSearch">查询</el-button>
+        <el-button size="large" @click="handleReset">重置</el-button>
       </div>
     </div>
 
@@ -193,30 +297,37 @@ const { page: dpPage, pageSize: dpSize, pagedData: pagedDepartments, total: dpTo
     <div class="panel table-card">
       <div class="table-head">
         <h3>科室列表</h3>
-        <span class="table-total">共 {{ filteredDepartments.length }} 个科室</span>
+        <span class="table-total">共 {{ total }} 个科室</span>
       </div>
-      <el-table :data="pagedDepartments" stripe>
-        <el-table-column prop="name" label="科室名称" min-width="120" show-overflow-tooltip />
+      <el-table v-loading="loading" :data="tableData" stripe>
+        <el-table-column prop="name" label="科室名称" min-width="160" show-overflow-tooltip />
         <el-table-column prop="category" label="分类" width="100" />
-        <el-table-column label="所属医院/院区" min-width="200">
-          <template #default="{ row }">
-            <div class="hospital-cell">
-              <span>{{ row.hospital }}</span>
-              <small>{{ row.campus }}</small>
-            </div>
-          </template>
+        <el-table-column label="所属医院" min-width="160" show-overflow-tooltip>
+          <template #default="{ row }">{{ hospitalNameMap[String(row.hospitalId)] || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="director" label="科室主任" width="100" />
-        <el-table-column prop="doctorCount" label="医生数" width="90" align="center" />
-        <el-table-column prop="bedCount" label="床位数" width="90" align="center" />
+        <el-table-column label="所属院区" min-width="140" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.areaId ? (areaNameMap[String(row.areaId)] || '-') : '-' }}</template>
+        </el-table-column>
+        <el-table-column prop="headDoctor" label="科室主任" width="110">
+          <template #default="{ row }">{{ row.headDoctor || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="医生数" width="90" align="center">
+          <template #default="{ row }">{{ row.doctorCount ?? 0 }}</template>
+        </el-table-column>
+        <el-table-column label="床位数" width="90" align="center">
+          <template #default="{ row }">{{ row.bedCount ?? 0 }}</template>
+        </el-table-column>
+        <el-table-column prop="phone" label="联系电话" width="140">
+          <template #default="{ row }">{{ row.phone || '-' }}</template>
+        </el-table-column>
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.status === '正常' ? 'success' : 'info'" effect="dark" size="small" round>
-              {{ row.status }}
+            <el-tag :type="Number(row.status) === 1 ? 'success' : 'info'" effect="dark" size="small" round>
+              {{ STATUS_TEXT[Number(row.status)] || '-' }}
             </el-tag>
           </template>
         </el-table-column>
-                <el-table-column label="操作" width="110" fixed="right" align="center">
+        <el-table-column label="操作" width="110" fixed="right" align="center">
           <template #default="{ row }">
             <el-tooltip content="编辑" placement="top">
               <el-button type="primary" link @click="openEdit(row)"><el-icon><Edit /></el-icon></el-button>
@@ -233,25 +344,26 @@ const { page: dpPage, pageSize: dpSize, pagedData: pagedDepartments, total: dpTo
       <el-pagination
         class="list-pager"
         background
-        v-model:current-page="dpPage"
-        v-model:page-size="dpSize"
+        :current-page="page"
+        :page-size="pageSize"
         :page-sizes="[10, 20, 50, 100]"
-        :total="dpTotal"
+        :total="total"
         layout="total, prev, pager, next, sizes"
-        @size-change="dpPage = 1"
+        @current-change="handlePageChange"
+        @size-change="handleSizeChange"
       />
     </div>
     <!-- 添加/编辑弹窗 -->
-    <el-dialog v-model="dialogVisible" width="640px" class="department-dialog" @closed="resetForm">
+    <el-dialog v-model="dialogVisible" width="640px" class="hospital-dialog" @closed="resetForm">
       <template #header>
         <div class="dialog-heading">
           <h3>{{ isEdit ? '编辑科室' : '添加科室' }}</h3>
-          <p>{{ isEdit ? '修改科室信息' : '填写科室基本信息' }}</p>
+          <p>填写科室基本信息</p>
         </div>
       </template>
 
-      <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="department-form">
-        <el-form-item label="科室名称" prop="name">
+      <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="hospital-form">
+        <el-form-item label="科室名称" prop="name" class="full">
           <el-input v-model="form.name" size="large" placeholder="请输入科室名称" />
         </el-form-item>
         <el-form-item label="科室分类" prop="category">
@@ -259,52 +371,60 @@ const { page: dpPage, pageSize: dpSize, pagedData: pagedDepartments, total: dpTo
             <el-option v-for="category in categories" :key="category" :label="category" :value="category" />
           </el-select>
         </el-form-item>
-        <el-form-item label="所属医院" prop="hospital">
-          <el-select v-model="form.hospital" class="full-control" placeholder="请选择医院"
-            @change="onHospitalChange">
-            <el-option v-for="hospital in hospitalOptions" :key="hospital" :label="hospital" :value="hospital" />
+        <el-form-item label="所属医院" prop="hospitalId">
+          <el-select
+            v-model="form.hospitalId"
+            class="full-control"
+            placeholder="请选择所属医院"
+            @change="handleHospitalChange"
+          >
+            <el-option v-for="hospital in hospitalOptions" :key="hospital.id" :label="hospital.name" :value="hospital.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="所属院区" prop="campus">
-          <el-select v-model="form.campus" class="full-control" placeholder="请选择院区">
-            <el-option v-for="campus in campusOptions" :key="campus" :label="campus" :value="campus" />
+        <el-form-item label="所属院区" prop="areaId">
+          <el-select v-model="form.areaId" class="full-control" clearable placeholder="请选择所属院区（可选）">
+            <el-option v-for="area in formAreaOptions" :key="area.id" :label="area.name" :value="area.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="科室主任" prop="director">
-          <el-input v-model="form.director" size="large" placeholder="请输入科室主任" />
+        <el-form-item label="科室主任" prop="headDoctor">
+          <el-input v-model="form.headDoctor" size="large" placeholder="请输入科室主任姓名" />
+        </el-form-item>
+        <el-form-item label="医生数量" prop="doctorCount">
+          <el-input-number v-model="form.doctorCount" :min="0" controls-position="right" class="full-control" placeholder="请输入医生数量" />
+        </el-form-item>
+        <el-form-item label="床位数量" prop="bedCount">
+          <el-input-number v-model="form.bedCount" :min="0" controls-position="right" class="full-control" placeholder="请输入床位数量" />
         </el-form-item>
         <el-form-item label="联系电话" prop="phone">
           <el-input v-model="form.phone" size="large" placeholder="请输入联系电话" />
         </el-form-item>
-        <el-form-item label="医生数量" prop="doctorCount">
-          <el-input-number v-model="form.doctorCount" :min="0" :controls="false" class="full-control"
-            size="large" />
-        </el-form-item>
-        <el-form-item label="床位数量" prop="bedCount">
-          <el-input-number v-model="form.bedCount" :min="0" :controls="false" class="full-control"
-            size="large" />
-        </el-form-item>
-        <el-form-item label="科室简介" prop="intro" class="full">
-          <el-input v-model="form.intro" type="textarea" :rows="3" placeholder="请输入科室简介" />
-        </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-select v-model="form.status" class="full-control">
-            <el-option v-for="status in statuses" :key="status" :label="status" :value="status" />
+            <el-option
+              v-for="status in statuses"
+              :key="status"
+              :label="STATUS_TEXT[status]"
+              :value="status"
+            />
           </el-select>
+        </el-form-item>
+        <el-form-item label="科室简介" prop="description" class="full">
+          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入科室简介" />
         </el-form-item>
       </el-form>
 
       <template #footer>
         <el-button size="large" @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" size="large" @click="handleSubmit">
+        <el-button type="primary" size="large" :loading="submitting" @click="handleSubmit">
           {{ isEdit ? '保存修改' : '确认添加' }}
         </el-button>
       </template>
     </el-dialog>
   </div>
 </template>
+
 <style scoped>
-.department-page {
+.hospital-page {
   --el-color-primary: #2563eb;
   color: #1f2937;
 }
@@ -358,7 +478,7 @@ const { page: dpPage, pageSize: dpSize, pagedData: pagedDepartments, total: dpTo
 }
 
 .stat-label {
-  font-size: 18px;
+  font-size: 15px;
 
   color: #1f2937;
 }
@@ -464,17 +584,6 @@ const { page: dpPage, pageSize: dpSize, pagedData: pagedDepartments, total: dpTo
   color: #9ca3af;
 }
 
-.hospital-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.hospital-cell small {
-  font-size: 12px;
-  color: #9ca3af;
-}
-
 :deep(.el-table) {
   --el-table-header-bg-color: #f8fafc;
   --el-table-header-text-color: #374151;
@@ -502,14 +611,14 @@ const { page: dpPage, pageSize: dpSize, pagedData: pagedDepartments, total: dpTo
   color: #9ca3af;
 }
 
-.department-form {
+.hospital-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0 20px;
   margin-top: 8px;
 }
 
-.department-form .full {
+.hospital-form .full {
   grid-column: 1 / -1;
 }
 
@@ -517,11 +626,13 @@ const { page: dpPage, pageSize: dpSize, pagedData: pagedDepartments, total: dpTo
   width: 100%;
 }
 
-:deep(.department-form .el-form-item__label) {
+:deep(.hospital-form .el-form-item__label) {
   padding-bottom: 6px;
   font-weight: 500;
   color: #374151;
 }
+
+/* 弹窗 teleport 到 body，使用全局样式 */
 
 @media (max-width: 1100px) {
   .stats-grid {
@@ -545,11 +656,11 @@ const { page: dpPage, pageSize: dpSize, pagedData: pagedDepartments, total: dpTo
     width: 100%;
   }
 
-  .department-form {
+  .hospital-form {
     grid-template-columns: 1fr;
   }
 
-  .department-form .full {
+  .hospital-form .full {
     grid-column: 1;
   }
 }
@@ -560,10 +671,9 @@ const { page: dpPage, pageSize: dpSize, pagedData: pagedDepartments, total: dpTo
   font-weight: bold;
 }
 </style>
-
 <style>
 /* 弹窗 teleport 至 body，需用全局样式 */
-.el-dialog.department-dialog {
+.el-dialog.hospital-dialog {
   --el-color-primary: #2563eb;
   border-radius: 16px;
   overflow: hidden;

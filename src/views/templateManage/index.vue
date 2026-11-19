@@ -1,693 +1,872 @@
 <script setup>
-import { useTablePage } from '../../composables/useTablePage'
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  getAllAppReplyTemplates,
+  createAppReplyTemplate,
+  updateAppReplyTemplateById,
+  deleteAppReplyTemplateById,
+  updateAppReplyTemplateStatusById
+} from '../../api/index.js'
 
-// 模板类型配色
-const typeMap = {
-  问诊: { color: '#2563eb', bg: 'rgba(232,241,255,0.5)' },
-  报告解读: { color: '#4b5563', bg: 'rgba(243,244,246,0.5)' },
-  营养建议: { color: '#16a34a', bg: 'rgba(220,252,231,0.5)' },
-  健康咨询: { color: '#f97316', bg: 'rgba(255,244,229,0.5)' },
-  复诊提醒: { color: '#f5222d', bg: 'rgba(254,240,240,0.5)' }
+/* ============================ 枚举字典 ============================ */
+// 适用端 terminalsJson（多选）
+const TERMINAL_OPTIONS = [
+  { label: '电脑端', value: 'PC' },
+  { label: '小程序', value: 'MINI_PROGRAM' }
+]
+// 疾病标签候选（来自字典维护 - 疾病字典；接口未就绪前用占位，接入字典后替换）
+const DISEASE_OPTIONS = [
+  '妇科', '产科', '肿瘤科', '肛肠科', '骨科', '内分泌科', '孕期头晕',
+  '轻度贫血', '孕期管理', '产后恢复', '高血压', '糖尿病'
+]
+// 模板场景（type / 场景标签）
+const SCENE_OPTIONS = [
+  { label: '问诊', value: 'CONSULT' },
+  { label: '报告解读', value: 'REPORT_REVIEW' },
+  { label: '营养建议', value: 'NUTRITION' },
+  { label: '健康咨询', value: 'HEALTH_ADVICE' },
+  { label: '复诊提醒', value: 'FOLLOWUP_REMINDER' },
+  { label: '用药提醒', value: 'MEDICATION' },
+  { label: '术后护理', value: 'POSTOP_CARE' },
+  { label: '其他', value: 'OTHER' }
+]
+// 适用角色 rolesJson
+const ROLE_OPTIONS = [
+  { label: '客服', value: 'CS' },
+  { label: '医生', value: 'DOCTOR' },
+  { label: '陪诊师', value: 'ESCORT' },
+  { label: '驻点人员', value: 'STATION' }
+]
+// 状态：1 启用 / 0 停用 / 2 待完善
+const STATUS_OPTIONS = [
+  { label: '已启用', value: 1 },
+  { label: '已停用', value: 0 },
+  { label: '待完善', value: 2 }
+]
+const STATUS_MAP = {
+  1: { label: '已启用', type: 'success' },
+  0: { label: '已停用', type: 'danger' },
+  2: { label: '待完善', type: 'warning' }
 }
-const typeOptions = Object.keys(typeMap)
-const statusOptions = ['启用', '停用']
 
-// 统计内容中的变量数 {变量名}
-const varCount = (content) => (content.match(/\{[^{}]+\}/g) || []).length
+/* ============================ 列表与筛选 ============================ */
+const loading = ref(false)
+const list = ref([])
 
-// 模板模拟数据
-const templates = ref([
-  {
-    id: 1, name: '初诊问诊模板', type: '问诊', category: '妇产科', status: '启用',
-    creator: '张医生', used: 256, created: '2024-01-15',
-    content: '您好{患者姓名}，我是{医生姓名}医生。请问您目前主要有哪些不适症状？症状持续多久了？是否有相关病史？'
-  },
-  {
-    id: 2, name: 'B超报告解读', type: '报告解读', category: '妇产科', status: '启用',
-    creator: '李医生', used: 189, created: '2024-02-20',
-    content: '{患者姓名}您好，您{检查日期}的{检查部位}超声结果：{超声所见}。建议携带报告到院面诊。'
-  },
-  {
-    id: 3, name: '孕期营养建议', type: '营养建议', category: '产科', status: '启用',
-    creator: '王医生', used: 342, created: '2024-03-08',
-    content: '{孕妇姓名}您好，目前孕{孕周}。结合体重{体重}kg，建议：{饮食建议}。下次产检时间：{复诊时间}。'
-  },
-  {
-    id: 4, name: '产后恢复咨询', type: '健康咨询', category: '产科', status: '启用',
-    creator: '赵医生', used: 178, created: '2024-04-12',
-    content: '{产妇姓名}您好，您于{分娩日期}{分娩方式}分娩。当前{恢复情况}，建议：{建议}。'
-  },
-  {
-    id: 5, name: '复诊提醒通知', type: '复诊提醒', category: '通用', status: '启用',
-    creator: '孙医生', used: 425, created: '2024-05-06',
-    content: '{患者姓名}您好，提醒您于{复诊日期}到{复诊科室}复诊，请按时就诊。'
-  }
-])
-
-// 顶部统计
-const stats = computed(() => {
-  const totalUsed = templates.value.reduce((s, t) => s + t.used, 0)
-  const askCount = templates.value.filter((t) => t.type === '问诊').length
-  return [
-    { label: '模板总数', value: String(templates.value.length), unit: '个模板' },
-    { label: '总使用次数', value: totalUsed.toLocaleString(), unit: '次使用' },
-    { label: '问诊模板', value: String(askCount), unit: '个模板' },
-    { label: '平均使用', value: String(Math.round(totalUsed / templates.value.length)), unit: '次/模板' }
-  ]
+// 筛选条件
+const query = reactive({
+  keyword: '',
+  terminal: '',
+  scene: '',
+  role: '',
+  status: '',
+  creator: '',
+  disease: ''
 })
 
-// 筛选（实时）
-const keyword = ref('')
-const filterType = ref('')
-const filtered = computed(() =>
-  templates.value.filter((t) => {
-    const word = keyword.value.trim()
-    const matchWord =
-      !word || [t.name, t.content, t.category].some((v) => v.includes(word))
-    const matchType = !filterType.value || t.type === filterType.value
-    return matchWord && matchType
-  })
-)
-
-// 添加/编辑弹窗
-const dialogVisible = ref(false)
-const mode = ref('add')
-const formRef = ref()
-const createForm = () => ({ id: null, name: '', type: '问诊', category: '', status: '启用', creator: '', used: 0, content: '' })
-const form = reactive(createForm())
-const rules = {
-  name: [{ required: true, message: '请输入模板名称', trigger: 'blur' }],
-  type: [{ required: true, message: '请选择模板类型', trigger: 'change' }],
-  category: [{ required: true, message: '请输入分类标签', trigger: 'blur' }],
-  content: [{ required: true, message: '请输入模板内容', trigger: 'blur' }]
-}
-
-const openAdd = () => {
-  Object.assign(form, createForm())
-  mode.value = 'add'
-  dialogVisible.value = true
-  formRef.value?.clearValidate()
-}
-const openEdit = (row) => {
-  Object.assign(form, JSON.parse(JSON.stringify(row)))
-  mode.value = 'edit'
-  dialogVisible.value = true
-  formRef.value?.clearValidate()
-}
-
-const handleSubmit = () => {
-  formRef.value.validate((valid) => {
-    if (!valid) return
-    if (mode.value === 'edit') {
-      const target = templates.value.find((t) => t.id === form.id)
-      Object.assign(target, {
-        name: form.name, type: form.type, category: form.category,
-        status: form.status, content: form.content
-      })
-      ElMessage.success('模板已更新')
-    } else {
-      templates.value.unshift({
-        ...JSON.parse(JSON.stringify(form)),
-        id: Date.now(), creator: '管理员', used: 0,
-        created: new Date().toISOString().slice(0, 10)
-      })
-      ElMessage.success('模板已添加')
-    }
-    dialogVisible.value = false
-  })
-}
-
-// 查看详情弹窗
-const detailVisible = ref(false)
-const detail = ref(null)
-const detailVars = computed(() => detail.value?.content.match(/\{[^{}]+\}/g) || [])
-
-const openView = (row) => {
-  detail.value = row
-  detailVisible.value = true
-}
-
-// 复制模板内容
-const copyContent = async () => {
-  const text = detail.value.content
+// 本地筛选（接口为全量 getAll；若后端提供分页查询参数，可改为服务端筛选）
+async function fetchList() {
+  loading.value = true
   try {
-    await navigator.clipboard.writeText(text)
-  } catch {
-    const ta = document.createElement('textarea')
-    ta.value = text
-    document.body.appendChild(ta)
-    ta.select()
-    document.execCommand('copy')
-    document.body.removeChild(ta)
+    const res = await getAllAppReplyTemplates()
+    list.value = Array.isArray(res) ? res : res?.list || []
+  } catch (e) {
+    ElMessage.error(e?.message || '模板加载失败')
+  } finally {
+    loading.value = false
   }
-  ElMessage.success('内容已复制')
 }
 
-// 复制模板
-const handleCopy = (row) => {
-  templates.value.unshift({
-    ...JSON.parse(JSON.stringify(row)),
-    id: Date.now(),
-    name: `${row.name}（副本）`,
-    creator: '管理员',
-    used: 0
+// 解析 JSON 字符串字段为数组
+function parseJsonArray(val) {
+  if (Array.isArray(val)) return val
+  if (!val) return []
+  try {
+    const parsed = JSON.parse(val)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+// 标签翻译：按字典匹配，匹配不到原样展示
+function labelOf(options, value) {
+  const hit = options.find((o) => o.value === value)
+  return hit ? hit.label : value
+}
+
+// 行数据规整
+const tableData = computed(() => {
+  return list.value.map((item) => ({
+    ...item,
+    terminalList: parseJsonArray(item.terminalsJson),
+    roleList: parseJsonArray(item.rolesJson),
+    diseaseList: parseJsonArray(item.diseasesJson),
+    questionList: parseJsonArray(item.questionsJson)
+  }))
+})
+
+// 疾病标签聚合（用于顶部疾病标签栏）
+const diseaseGroups = computed(() => {
+  const map = new Map()
+  tableData.value.forEach((t) => {
+    t.diseaseList.forEach((d) => {
+      map.set(d, (map.get(d) || 0) + 1)
+    })
   })
-  ElMessage.success('模板已复制')
+  return Array.from(map.entries()).map(([name, count]) => ({ name, count }))
+})
+
+// 统计卡片
+const stats = computed(() => ({
+  total: list.value.length,
+  enabled: list.value.filter((t) => t.status === 1).length,
+  diseaseCount: diseaseGroups.value.length,
+  monthUse: list.value.reduce((sum, t) => sum + (Number(t.usageCount) || 0), 0)
+}))
+
+// 筛选后结果
+const filteredData = computed(() => {
+  return tableData.value.filter((t) => {
+    if (query.keyword) {
+      const kw = query.keyword.toLowerCase()
+      const hay = `${t.name || ''} ${t.content || ''} ${(t.questionList || []).join(' ')}`.toLowerCase()
+      if (!hay.includes(kw)) return false
+    }
+    if (query.terminal && !t.terminalList.includes(query.terminal)) return false
+    if (query.scene && t.surgeryType !== query.scene) return false
+    if (query.role && !t.roleList.includes(query.role)) return false
+    if (query.status !== '' && t.status !== Number(query.status)) return false
+    if (query.creator && t.creatorId !== query.creator) return false
+    if (query.disease && !t.diseaseList.includes(query.disease)) return false
+    return true
+  })
+})
+
+/* ============================ 选择与批量操作 ============================ */
+const selectedIds = ref([])
+const onSelectionChange = (rows) => {
+  selectedIds.value = rows.map((r) => r.id)
 }
 
-// 删除
-const handleDelete = (row) => {
-  ElMessageBox.confirm(`确认删除模板「${row.name}」吗？`, '删除确认', {
-    type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消'
-  }).then(() => {
-    templates.value = templates.value.filter((t) => t.id !== row.id)
-    ElMessage.success('模板已删除')
-  }).catch(() => {})
+const batchEnable = async () => {
+  if (!selectedIds.value.length) return ElMessage.warning('请先勾选模板')
+  try {
+    for (const id of selectedIds.value) {
+      await updateAppReplyTemplateStatusById(id, 1)
+    }
+    ElMessage.success('批量启用成功')
+    fetchList()
+  } catch (e) {
+    ElMessage.error(e?.message || '批量启用失败')
+  }
 }
-const { page: tmPage, pageSize: tmSize, pagedData: pagedTemplates, total: tmTotal } = useTablePage(filtered)
+
+const batchDisable = async () => {
+  if (!selectedIds.value.length) return ElMessage.warning('请先勾选模板')
+  try {
+    for (const id of selectedIds.value) {
+      await updateAppReplyTemplateStatusById(id, 0)
+    }
+    ElMessage.success('批量停用成功')
+    fetchList()
+  } catch (e) {
+    ElMessage.error(e?.message || '批量停用失败')
+  }
+}
+
+/* ============================ 单条操作 ============================ */
+// 复制模板：带原内容打开新增弹窗，名称追加「副本」，默认草稿态
+function onCopyRow(row) {
+  openCreate()
+  Object.assign(form, {
+    name: `${row.name}（副本）`,
+    surgeryType: row.surgeryType || '',
+    universal: row.common === 1,
+    terminals: parseJsonArray(row.terminalsJson),
+    roles: parseJsonArray(row.rolesJson),
+    diseases: parseJsonArray(row.diseasesJson),
+    questions: parseJsonArray(row.questionsJson),
+    content: row.content || '',
+    note: row.note || '',
+    status: 2
+  })
+}
+
+async function onDelete(row) {
+  await ElMessageBox.confirm(`确认删除模板「${row.name}」？删除后不可恢复。`, '删除确认', {
+    type: 'warning',
+    confirmButtonText: '确认删除',
+    cancelButtonText: '取消'
+  })
+  try {
+    await deleteAppReplyTemplateById(row.id)
+    ElMessage.success('已删除')
+    fetchList()
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error(e?.message || '删除失败')
+  }
+}
+
+async function toggleStatus(row) {
+  const next = row.status === 1 ? 0 : 1
+  try {
+    await updateAppReplyTemplateStatusById(row.id, next)
+    ElMessage.success(next === 1 ? '已启用' : '已停用')
+    fetchList()
+  } catch (e) {
+    ElMessage.error(e?.message || '操作失败')
+  }
+}
+
+/* ============================ 新增 / 编辑弹窗 ============================ */
+const dialogVisible = ref(false)
+const dialogRef = ref()
+const isEdit = ref(false)
+const isView = ref(false) // 查看模式：同弹窗只读，不可编辑
+const previewTab = ref('PC') // PC / MINI_PROGRAM
+const questionInput = ref('')
+
+const form = reactive({
+  id: null,
+  name: '',
+  surgeryType: '',      // 模板场景
+  universal: false,     // 通用模板开关
+  terminals: [],
+  roles: [],
+  diseases: [],
+  questions: [],
+  content: '',
+  note: '',
+  status: 1
+})
+
+const formRules = {
+  name: [{ required: true, message: '请输入模板名称', trigger: 'blur' }],
+  surgeryType: [{ required: true, message: '请选择模板场景', trigger: 'change' }],
+  diseases: [{ required: true, message: '请选择关联疾病', trigger: 'change' }],
+  terminals: [{ required: true, message: '请选择适用端', trigger: 'change' }],
+  roles: [{ required: true, message: '请选择适用角色', trigger: 'change' }],
+  content: [{ required: true, message: '请输入模板正文', trigger: 'blur' }]
+}
+
+function fillForm(row) {
+  Object.assign(form, {
+    id: row.id,
+    name: row.name,
+    surgeryType: row.surgeryType || '',
+    universal: row.common === 1,
+    terminals: parseJsonArray(row.terminalsJson),
+    roles: parseJsonArray(row.rolesJson),
+    diseases: parseJsonArray(row.diseasesJson),
+    questions: parseJsonArray(row.questionsJson),
+    content: row.content || '',
+    note: row.note || '',
+    status: row.status
+  })
+}
+
+function openCreate() {
+  isEdit.value = false
+  isView.value = false
+  previewTab.value = 'PC'
+  questionInput.value = ''
+  Object.assign(form, {
+    id: null,
+    name: '',
+    surgeryType: '',
+    universal: false,
+    terminals: [],
+    roles: [],
+    diseases: [],
+    questions: [],
+    content: '',
+    note: '',
+    status: 1
+  })
+  dialogVisible.value = true
+  dialogRef.value?.clearValidate()
+}
+
+function openEdit(row) {
+  isEdit.value = true
+  isView.value = false
+  previewTab.value = 'PC'
+  questionInput.value = ''
+  fillForm(row)
+  dialogVisible.value = true
+  dialogRef.value?.clearValidate()
+}
+
+// 查看：同编辑弹窗，表单只读
+function openView(row) {
+  isEdit.value = true
+  isView.value = true
+  previewTab.value = 'PC'
+  questionInput.value = ''
+  fillForm(row)
+  dialogVisible.value = true
+  dialogRef.value?.clearValidate()
+}
+
+// 查看态直接跳编辑
+function gotoEdit() {
+  openEdit({
+    id: form.id,
+    name: form.name,
+    common: form.universal ? 1 : 0,
+    surgeryType: form.surgeryType,
+    terminalsJson: JSON.stringify(form.terminals),
+    rolesJson: JSON.stringify(form.roles),
+    diseasesJson: JSON.stringify(form.diseases),
+    questionsJson: JSON.stringify(form.questions),
+    content: form.content,
+    note: form.note,
+    status: form.status
+  })
+}
+
+// 关联问题增删
+function addQuestion() {
+  const q = questionInput.value.trim()
+  if (!q) return
+  if (!form.questions.includes(q)) form.questions.push(q)
+  questionInput.value = ''
+}
+function removeQuestion(q) {
+  form.questions = form.questions.filter((item) => item !== q)
+}
+
+// 变量占位示例值，用于右侧预览替换
+const PREVIEW_VARS = {
+  '{{用户姓名}}': '张小美',
+  '{{下次复诊时间}}': '2026年2月18日',
+  '{{医院名称}}': '北京协和医院',
+  '{{科室名称}}': '妇科',
+  '{{客服姓名}}': '李客服',
+  '{{医生姓名}}': '王医生',
+  '{{疾病名称}}': '轻度贫血'
+}
+const previewContent = computed(() => {
+  let text = form.content || ''
+  Object.entries(PREVIEW_VARS).forEach(([key, val]) => {
+    text = text.replaceAll(key, val)
+  })
+  return text || '模板内容预览 · 使用前可继续编辑'
+})
+
+function toggleDisease(d) {
+  if (form.diseases.includes(d)) {
+    form.diseases = form.diseases.filter((item) => item !== d)
+  } else {
+    form.diseases.push(d)
+  }
+}
+
+// savedStatus: 1 保存并启用 / 2 保存草稿
+async function saveForm(savedStatus) {
+  dialogRef.value.validate(async (valid) => {
+    if (!valid) return
+    const payload = {
+      name: form.name,
+      content: form.content,
+      type: form.universal ? '通用' : '按手术类型',
+      surgeryType: form.surgeryType,
+      terminalsJson: JSON.stringify(form.terminals),
+      rolesJson: JSON.stringify(form.roles),
+      diseasesJson: JSON.stringify(form.diseases),
+      questionsJson: JSON.stringify(form.questions),
+      common: form.universal ? 1 : 0,
+      note: form.note,
+      status: savedStatus === undefined ? form.status : savedStatus
+    }
+    try {
+      if (isEdit.value) {
+        await updateAppReplyTemplateById(form.id, payload)
+        ElMessage.success('模板已更新')
+      } else {
+        await createAppReplyTemplate(payload)
+        ElMessage.success('模板已创建')
+      }
+      dialogVisible.value = false
+      fetchList()
+    } catch (e) {
+      ElMessage.error(e?.message || '保存失败')
+    }
+  })
+}
+
+/* ============================ 查询 / 重置 ============================ */
+function onSearch() {}
+function onReset() {
+  Object.assign(query, { keyword: '', terminal: '', scene: '', role: '', status: '', creator: '', disease: '' })
+}
+
+onMounted(fetchList)
 </script>
+
 <template>
   <div class="tpl-page">
+    <!-- 页头 -->
     <div class="page-header">
       <div>
         <h1>模板管理</h1>
-        <p>管理各类回复模板</p>
+        <p class="header-sub">管理电脑端和小程序常用回复模板，并按疾病标签精准匹配用户。</p>
       </div>
-      <el-button type="primary" class="btn-blue" size="large" @click="openAdd">
-        <el-icon><Plus /></el-icon>添加模板
+      <el-button type="primary" class="btn-dark" @click="openCreate">
+        <el-icon><Plus /></el-icon>新增模板
       </el-button>
     </div>
 
     <!-- 统计卡片 -->
-    <div class="stats-grid">
-      <div v-for="item in stats" :key="item.label" class="stat-item">
-        <div class="stat-label">{{ item.label }}</div>
-        <div class="stat-main">
-          <span class="stat-value">{{ item.value }}</span>
-          <span class="stat-sub">{{ item.unit }}</span>
-        </div>
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="stat-label">模板总数</div>
+        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-foot">全部回复模板</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">已启用模板</div>
+        <div class="stat-value green">{{ stats.enabled }}</div>
+        <div class="stat-foot">当前可被调用</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">覆盖疾病</div>
+        <div class="stat-value">{{ stats.diseaseCount }}</div>
+        <div class="stat-foot">已关联疾病标签</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">本月使用次数</div>
+        <div class="stat-value orange">{{ stats.monthUse.toLocaleString() }}</div>
+        <div class="stat-foot">电脑端与小程序累计</div>
       </div>
     </div>
 
-    <!-- 筛选条件 -->
-    <div class="panel filter-card">
-      <h3>筛选条件</h3>
+    <!-- 筛选区 -->
+    <div class="panel filter-panel">
       <div class="filter-row">
-        <el-input v-model="keyword" class="search-input" size="large" clearable
-          placeholder="搜索模板名称、内容或分类...">
-          <template #prefix><el-icon><Search /></el-icon></template>
-        </el-input>
-        <el-select v-model="filterType" class="filter-select" size="large" clearable placeholder="全部类型">
-          <el-option v-for="t in typeOptions" :key="t" :label="t" :value="t" />
+        <el-input v-model="query.keyword" placeholder="搜索模板名称、回复内容、关联问题或疾病标签..." clearable class="kw-input" @keyup.enter="onSearch" />
+        <el-select v-model="query.terminal" placeholder="全部适用端" clearable>
+          <el-option v-for="o in TERMINAL_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
         </el-select>
+        <el-select v-model="query.scene" placeholder="全部场景" clearable>
+          <el-option v-for="o in SCENE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+        </el-select>
+        <el-select v-model="query.role" placeholder="全部角色" clearable>
+          <el-option v-for="o in ROLE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+        </el-select>
+        <el-select v-model="query.status" placeholder="全部状态" clearable>
+          <el-option v-for="o in STATUS_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+        </el-select>
+        <el-select v-model="query.creator" placeholder="全部创建人" clearable />
       </div>
+      <div class="filter-actions">
+        <el-button @click="onReset"><el-icon><RefreshLeft /></el-icon>重置</el-button>
+        <el-button type="primary" @click="onSearch"><el-icon><Search /></el-icon>查询</el-button>
+      </div>
+    </div>
+
+    <!-- 疾病标签栏 -->
+    <div class="panel disease-bar">
+      <div class="disease-left">
+        <span class="disease-title">疾病标签</span>
+        <el-tag :type="query.disease === '' ? 'primary' : 'info'" round size="small" class="disease-tag" @click="query.disease = ''">
+          全部模板 {{ stats.total }}
+        </el-tag>
+        <el-tag
+          v-for="d in diseaseGroups"
+          :key="d.name"
+          :type="query.disease === d.name ? 'primary' : 'info'"
+          round size="small"
+          class="disease-tag"
+          @click="query.disease = query.disease === d.name ? '' : d.name"
+        >
+          {{ d.name }} {{ d.count }}
+        </el-tag>
+        <el-dropdown v-if="diseaseGroups.length > 6" trigger="click">
+          <el-tag round size="small" class="disease-tag">更多疾病<el-icon><ArrowDown /></el-icon></el-tag>
+        </el-dropdown>
+      </div>
+      <el-link type="primary" :underline="false">前往字典维护 →</el-link>
     </div>
 
     <!-- 模板列表 -->
-    <div class="panel table-card">
+    <div class="panel table-panel">
       <div class="table-head">
-        <h3>模板列表</h3>
-        <span class="head-sub">共 {{ filtered.length }} 个模板</span>
+        <div class="table-title">
+          模板列表 <span class="count">共 {{ filteredData.length }} 条结果</span>
+        </div>
+        <div v-if="selectedIds.length" class="batch-bar">
+          已选择 {{ selectedIds.length }} 项，支持批量启用、停用和设置疾病标签：
+          <el-button size="small" @click="batchEnable">批量启用</el-button>
+          <el-button size="small" @click="batchDisable">批量停用</el-button>
+          <el-button size="small">设置疾病标签</el-button>
+          <el-dropdown trigger="click">
+            <el-button size="small" type="primary" plain>按使用次数<el-icon><ArrowDown /></el-icon></el-button>
+          </el-dropdown>
+        </div>
+        <el-dropdown v-else trigger="click">
+          <el-button size="small" plain>按使用次数<el-icon><ArrowDown /></el-icon></el-button>
+        </el-dropdown>
       </div>
-      <el-table :data="pagedTemplates" stripe>
-        <el-table-column label="模板名称" prop="name" min-width="150" />
-        <el-table-column label="类型" min-width="110">
+
+      <el-table v-loading="loading" :data="filteredData" stripe @selection-change="onSelectionChange">
+        <el-table-column type="selection" width="44" />
+        <el-table-column label="模板名称及内容" min-width="320">
           <template #default="{ row }">
-            <span class="type-tag" :style="{ color: typeMap[row.type].color, background: typeMap[row.type].bg }">
-              {{ row.type }}
-            </span>
+            <div class="tpl-name">{{ row.name }}</div>
+            <div class="tpl-content">{{ row.content }}</div>
           </template>
         </el-table-column>
-        <el-table-column label="分类" prop="category" min-width="90" />
-        <el-table-column label="变量数" min-width="90" align="center">
-          <template #default="{ row }">{{ varCount(row.content) }} 个</template>
-        </el-table-column>
-        <el-table-column label="使用次数" min-width="100">
+        <el-table-column label="关联疾病" min-width="150">
           <template #default="{ row }">
-            <span class="used-pill">{{ row.used }} 次</span>
+            <el-tag v-for="d in row.diseaseList" :key="d" round size="small" class="disease-chip">{{ d }}</el-tag>
+            <span v-if="!row.diseaseList.length" class="muted">-</span>
           </template>
         </el-table-column>
-        <el-table-column label="创建人" prop="creator" min-width="90" />
-        <el-table-column label="状态" min-width="90">
+        <el-table-column label="模板场景" min-width="110">
           <template #default="{ row }">
-            <span class="status-tag" :class="row.status === '启用' ? 'on' : 'off'">{{ row.status }}</span>
+            <el-tag round size="small" type="warning" effect="plain">{{ labelOf(SCENE_OPTIONS, row.surgeryType) }}</el-tag>
           </template>
         </el-table-column>
-                <el-table-column label="操作" width="170" fixed="right" align="center">
+        <el-table-column label="适用端" min-width="90">
           <template #default="{ row }">
-            <el-tooltip content="查看" placement="top">
-              <el-button type="primary" link @click="openView(row)"><el-icon><View /></el-icon></el-button>
-            </el-tooltip>
-            <el-tooltip content="复制" placement="top">
-              <el-button type="primary" link @click="handleCopy(row)"><el-icon><CopyDocument /></el-icon></el-button>
-            </el-tooltip>
-            <el-tooltip content="编辑" placement="top">
-              <el-button type="primary" link @click="openEdit(row)"><el-icon><Edit /></el-icon></el-button>
-            </el-tooltip>
-            <el-tooltip content="删除" placement="top">
-              <el-button type="danger" link @click="handleDelete(row)"><el-icon><Delete /></el-icon></el-button>
-            </el-tooltip>
+            <el-tag v-for="t in row.terminalList" :key="t" round size="small" type="primary">
+              {{ labelOf(TERMINAL_OPTIONS, t) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <template #empty>
-          <el-empty description="暂无符合条件的模板" :image-size="90" />
-        </template>
+        <el-table-column label="适用角色" min-width="130">
+          <template #default="{ row }">
+            <el-tag v-for="r in row.roleList" :key="r" round size="small" effect="plain">{{ labelOf(ROLE_OPTIONS, r) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="使用次数" prop="usageCount" width="90" />
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="STATUS_MAP[row.status]?.type" round size="small" effect="plain">
+              {{ STATUS_MAP[row.status]?.label || row.status }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="150" fixed="right">
+          <template #default="{ row }">
+            <el-button text size="small" @click="openView(row)"><el-icon><View /></el-icon></el-button>
+            <el-button text size="small" @click="onCopyRow(row)"><el-icon><CopyDocument /></el-icon></el-button>
+            <el-button text size="small" @click="openEdit(row)"><el-icon><EditPen /></el-icon></el-button>
+            <el-button text size="small" @click="toggleStatus(row)"><el-icon><Switch /></el-icon></el-button>
+            <el-button text size="small" class="danger" @click="onDelete(row)"><el-icon><Delete /></el-icon></el-button>
+          </template>
+        </el-table-column>
       </el-table>
-      <el-pagination
-        class="list-pager"
-        background
-        v-model:current-page="tmPage"
-        v-model:page-size="tmSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="tmTotal"
-        layout="total, prev, pager, next, sizes"
-        @size-change="tmPage = 1"
-      />
+
+      <div class="pager">
+        <span>共 {{ filteredData.length }} 条</span>
+      </div>
     </div>
 
-    <!-- 添加/编辑弹窗 -->
-    <el-dialog v-model="dialogVisible" width="620px" class="tpl-dialog">
+    <!-- 新增/编辑弹窗（左右双栏：表单 + 双端预览） -->
+    <el-dialog v-model="dialogVisible" width="1080px" class="tpl-dialog" top="6vh">
       <template #header>
         <div class="dialog-heading">
-          <h3>{{ mode === 'edit' ? '编辑模板' : '添加模板' }}</h3>
-          <p>{{ mode === 'edit' ? '修改模板信息' : '添加新的回复模板' }}</p>
+          <h3>{{ isView ? '查看回复模板' : isEdit ? '编辑回复模板' : '新增回复模板' }}</h3>
+          <p>设置适用疾病、适用端和适用角色，右侧可实时预览双端效果。</p>
         </div>
       </template>
 
-      <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
-        <div class="form-grid">
-          <el-form-item label="模板名称" prop="name">
-            <el-input v-model="form.name" size="large" placeholder="请输入模板名称" />
-          </el-form-item>
-          <el-form-item label="模板类型" prop="type">
-            <el-select v-model="form.type" class="full-control" size="large">
-              <el-option v-for="t in typeOptions" :key="t" :label="t" :value="t" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="分类标签" prop="category">
-            <el-input v-model="form.category" size="large" placeholder="如：妇产科" />
-          </el-form-item>
-          <el-form-item label="状态">
-            <el-select v-model="form.status" class="full-control" size="large">
-              <el-option v-for="s in statusOptions" :key="s" :label="s" :value="s" />
-            </el-select>
-          </el-form-item>
-        </div>
-        <el-form-item label="模板内容" prop="content">
-          <el-input v-model="form.content" type="textarea" :rows="5" resize="none"
-            placeholder="请输入模板内容，变量使用 {变量名} 格式" />
-        </el-form-item>
-        <div v-if="form.content" class="var-tip">
-          模板变量（{{ varCount(form.content) }} 个）：
-          <el-tag v-for="v in form.content.match(/\{[^{}]+\}/g) || []" :key="v"
-            size="small" round effect="plain" class="var-tag">{{ v.replace(/[{}]/g, '') }}</el-tag>
-        </div>
-      </el-form>
+      <div class="dialog-body">
+        <!-- 左侧表单 -->
+        <el-form ref="dialogRef" :model="form" :rules="formRules" label-position="top" class="dialog-form" :disabled="isView">
+          <div class="form-two-col">
+            <el-form-item label="模板名称 *" prop="name">
+              <el-input v-model="form.name" placeholder="请输入模板名称" :disabled="isView" />
+            </el-form-item>
+            <el-form-item label="模板场景 *" prop="surgeryType">
+              <el-select v-model="form.surgeryType" style="width: 100%" :disabled="isView">
+                <el-option v-for="o in SCENE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+              </el-select>
+            </el-form-item>
+          </div>
 
-      <template #footer>
-        <el-button size="large" @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" class="btn-blue" size="large" @click="handleSubmit">
-          {{ mode === 'edit' ? '保存修改' : '确认添加' }}
-        </el-button>
-      </template>
-    </el-dialog>
+          <el-form-item prop="diseases">
+            <div class="disease-head">
+              <span class="form-label">关联疾病 *</span>
+              <el-checkbox v-model="form.universal" :disabled="isView">通用模板</el-checkbox>
+            </div>
+            <div class="disease-chip-box">
+              <el-tag
+                v-for="d in DISEASE_OPTIONS"
+                :key="d"
+                :type="form.diseases.includes(d) ? 'primary' : 'info'"
+                round
+                size="small"
+                class="pick-chip"
+                @click="!isView && toggleDisease(d)"
+              >{{ d }}</el-tag>
+            </div>
+            <div class="field-tip">标签来源：字典维护 - 疾病字典，当前页面不能新建疾病名称。</div>
+          </el-form-item>
 
-    <!-- 查看详情弹窗 -->
-    <el-dialog v-model="detailVisible" width="780px" class="tpl-detail-dialog">
-      <template #header>
-        <div class="detail-heading">
-          <h2>{{ detail?.name }}</h2>
-          <p>{{ detail?.type }} · {{ detail?.category }}</p>
-        </div>
-      </template>
+          <div class="form-two-col">
+            <el-form-item label="适用端 *" prop="terminals">
+              <el-checkbox-group v-model="form.terminals" :disabled="isView">
+                <el-checkbox v-for="o in TERMINAL_OPTIONS" :key="o.value" :label="o.value">{{ o.label }}</el-checkbox>
+              </el-checkbox-group>
+            </el-form-item>
+            <el-form-item label="适用角色 *" prop="roles">
+              <el-checkbox-group v-model="form.roles" :disabled="isView">
+                <el-checkbox v-for="o in ROLE_OPTIONS" :key="o.value" :label="o.value">{{ o.label }}</el-checkbox>
+              </el-checkbox-group>
+            </el-form-item>
+          </div>
 
-      <div v-if="detail" class="detail-body">
-        <div class="detail-label">模板内容</div>
-        <div class="detail-content">{{ detail.content }}</div>
+          <el-form-item label="关联问题 / 用户问法">
+            <div class="question-list">
+              <div v-for="q in form.questions" :key="q" class="question-item">
+                <span>{{ q }}</span>
+                <el-icon v-if="!isView" class="question-close" @click="removeQuestion(q)"><Close /></el-icon>
+              </div>
+            </div>
+            <div v-if="!isView" class="question-add">
+              <el-input v-model="questionInput" placeholder="添加用户可能的问法" @keyup.enter="addQuestion" />
+              <el-button @click="addQuestion">添加</el-button>
+            </div>
+          </el-form-item>
 
-        <div class="detail-grid">
-          <div>
-            <div class="detail-label">模板变量</div>
-            <div class="var-list">
-              <span v-for="v in detailVars" :key="v" class="var-pill">{{ v }}</span>
-              <span v-if="!detailVars.length" class="no-var">无变量</span>
+          <el-form-item label="回复模板内容 *" prop="content">
+            <el-input v-model="form.content" type="textarea" :rows="5" placeholder="支持变量占位，如{{用户姓名}}、{{科室名称}}" :disabled="isView" />
+          </el-form-item>
+
+          <div class="form-two-col">
+            <el-form-item label="状态">
+              <el-select v-model="form.status" style="width: 100%" :disabled="isView">
+                <el-option v-for="o in STATUS_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="备注">
+              <el-input v-model="form.note" placeholder="模板维护说明" :disabled="isView" />
+            </el-form-item>
+          </div>
+        </el-form>
+
+        <!-- 右侧预览 -->
+        <div class="dialog-preview">
+          <div class="preview-tabs">
+            <el-radio-group v-model="previewTab" size="small">
+              <el-radio-button value="PC"><el-icon><Monitor /></el-icon>电脑端预览</el-radio-button>
+              <el-radio-button value="MINI_PROGRAM"><el-icon><Cellphone /></el-icon>小程序预览</el-radio-button>
+            </el-radio-group>
+          </div>
+
+          <div class="preview-user">
+            <div class="pu-title">当前匹配用户</div>
+            <div class="pu-name">张小美 · P10086</div>
+            <el-tag round size="small" class="pu-chip">妇科</el-tag>
+            <el-tag round size="small" class="pu-chip">轻度贫血</el-tag>
+          </div>
+
+          <!-- 电脑端预览 -->
+          <div v-if="previewTab === 'PC'" class="preview-chat">
+            <div class="chat-row">
+              <div class="chat-avatar">张</div>
+              <div class="chat-meta">
+                <div class="chat-name">张小美</div>
+                <div class="chat-sub">电脑端客服会话</div>
+              </div>
+            </div>
+            <div class="chat-bubble">{{ previewContent }}</div>
+            <div class="chat-tip">模板内容预览 · 使用前可继续编辑</div>
+          </div>
+
+          <!-- 小程序预览（手机壳） -->
+          <div v-else class="mini-phone">
+            <div class="mini-screen">
+              <div class="mini-header">健康咨询</div>
+              <div class="mini-time">今天 10:28</div>
+              <div class="mini-row">
+                <div class="mini-avatar">张</div>
+                <div class="mini-bubble">{{ previewContent }}</div>
+              </div>
             </div>
           </div>
-          <div>
-            <div class="detail-label">使用次数</div>
-            <span class="detail-used">{{ detail.used }} 次</span>
-          </div>
-          <div>
-            <div class="detail-label">创建人</div>
-            <div class="detail-value">{{ detail.creator }}</div>
-          </div>
-          <div>
-            <div class="detail-label">创建时间</div>
-            <div class="detail-value">{{ detail.created }}</div>
+
+          <div class="preview-priority">
+            <div class="pp-title"><el-icon><MagicStick /></el-icon>模板匹配优先级</div>
+            <div class="pp-item">
+              <span class="pp-no">1</span>
+              <div><div class="pp-name">疾病完全匹配模板</div><div class="pp-sub">妇科 + 轻度贫血</div></div>
+            </div>
+            <div class="pp-item">
+              <span class="pp-no">2</span>
+              <div><div class="pp-name">同疾病分类模板</div><div class="pp-sub">妇科 / 产科</div></div>
+            </div>
+            <div class="pp-item">
+              <span class="pp-no">3</span>
+              <div><div class="pp-name">通用模板</div><div class="pp-sub">所有用户可用</div></div>
+            </div>
           </div>
         </div>
       </div>
 
       <template #footer>
-        <el-button size="large" class="copy-btn" @click="copyContent">
-          <el-icon><CopyDocument /></el-icon>复制内容
-        </el-button>
-        <el-button size="large" type="primary" class="btn-blue" @click="detailVisible = false">关闭</el-button>
+        <template v-if="isView">
+          <el-button @click="dialogVisible = false">关闭</el-button>
+          <el-button type="primary" @click="gotoEdit">去编辑</el-button>
+        </template>
+        <template v-else>
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button @click="saveForm(2)">保存草稿</el-button>
+          <el-button type="primary" @click="saveForm(1)">保存并启用</el-button>
+        </template>
       </template>
     </el-dialog>
   </div>
 </template>
+
 <style scoped>
 .tpl-page {
   --el-color-primary: #2563eb;
   color: #1f2937;
+  padding: 4px;
 }
+.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; }
+.page-header h1 { margin: 0; font-size: 24px; font-weight: 700; }
+.header-sub { margin: 8px 0 0; font-size: 13px; color: #9ca3af; }
+.btn-dark { font-weight: 600; }
 
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+/* 统计卡片 */
+.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 22px; }
+.stat-card {
+  background: #fff; border: 1px solid #eef0f4; border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05); padding: 20px 22px;
 }
-
-.page-header h1 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.page-header p {
-  margin: 8px 0 0;
-  font-size: 13px;
-  color: #9ca3af;
-}
+.stat-label { font-size: 13px; color: #6b7280; }
+.stat-value { margin: 10px 0 6px; font-size: 28px; font-weight: 700; }
+.stat-value.green { color: #16a34a; }
+.stat-value.orange { color: #ea580c; }
+.stat-foot { font-size: 12px; color: #9ca3af; }
 
 .panel {
-  background: #fff;
-  border: 1px solid #eef0f4;
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05);
+  background: #fff; border: 1px solid #eef0f4; border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05); padding: 18px 22px; margin-bottom: 18px;
 }
 
-.btn-blue {
-  font-weight: 600;
-}
+/* 筛选 */
+.filter-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.filter-row .el-select { width: 150px; }
+.kw-input { flex: 1; min-width: 260px; }
+.filter-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  row-gap: 22px;
-  margin: 22px 0;
-  padding: 28px 44px;
-  background: #fff;
-  border: 1px solid #eef0f4;
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05);
-}
-
-.stat-label {
-  font-size: 16px;
-  font-weight: 400;
-  color: #9ca3af;
-}
-
-.stat-main {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-  margin-top: 22px;
-}
-
-.stat-value {
-  font-size: 25px;
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: -0.5px;
-  color: #111827;
-}
-
-.stat-sub {
-  font-size: 14px;
-  color: #9ca3af;
-}
-
-/* 筛选区 */
-.filter-card {
-  padding: 20px 22px;
-}
-
-.filter-card h3 {
-  margin: 0 0 16px;
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.filter-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.search-input {
-  width: 320px;
-  max-width: 100%;
-}
-
-.filter-select {
-  width: 180px;
-}
+/* 疾病标签栏 */
+.disease-bar { display: flex; justify-content: space-between; align-items: center; }
+.disease-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.disease-title { font-size: 14px; font-weight: 600; margin-right: 6px; }
+.disease-tag { cursor: pointer; }
 
 /* 表格 */
-.table-card {
-  margin-top: 22px;
-  padding: 22px 24px;
-}
+.table-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.table-title { font-size: 15px; font-weight: 600; }
+.table-title .count { font-size: 12px; color: #9ca3af; font-weight: 400; margin-left: 6px; }
+.batch-bar { font-size: 13px; color: #6b7280; display: flex; align-items: center; gap: 8px; }
+.tpl-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.tpl-content { font-size: 12px; color: #6b7280; line-height: 1.6; }
+.disease-chip { margin: 2px 4px 2px 0; }
+.muted { color: #9ca3af; }
+.danger :deep(.el-icon) { color: #dc2626; }
+.pager { display: flex; justify-content: flex-end; margin-top: 14px; font-size: 13px; color: #6b7280; }
 
-.table-head {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 16px;
-}
+.form-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+.dialog-heading h3 { margin: 0; font-size: 17px; font-weight: 700; }
+.dialog-heading p { margin: 6px 0 0; font-size: 13px; color: #9ca3af; }
 
-.table-head h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.head-sub {
-  font-size: 13px;
-  color: #9ca3af;
-}
-
-:deep(.el-table) {
-  --el-table-header-bg-color: #f8fafc;
-  --el-table-header-text-color: #374151;
-  --el-table-border-color: #f1f3f7;
-}
-
-:deep(.el-table th.el-table__cell) {
-  font-weight: 600;
-}
-
-:deep(.el-table .el-button__text) {
-  font-weight: 500;
-}
-
-/* 类型标签 */
-.type-tag {
-  display: inline-block;
-  padding: 3px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-/* 使用次数灰胶囊 */
-.used-pill {
-  display: inline-block;
-  padding: 3px 12px;
-  border-radius: 999px;
-  background: #f3f4f6;
-  color: #4b5563;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-/* 状态标签（截图为黑色实心） */
-.status-tag {
-  display: inline-block;
-  padding: 3px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.status-tag.on {
-  background: rgba(220,252,231,0.5);
-  color: #16a34a;
-}
-
-.status-tag.off {
-  background: rgba(243,244,246,0.5);
-  color: #6b7280;
-}
-
-/* 表单弹窗 */
-.dialog-heading h3 {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 700;
-}
-
-.dialog-heading p {
-  margin: 6px 0 0;
-  font-size: 13px;
-  color: #9ca3af;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 20px;
-}
-
-.full-control {
-  width: 100%;
-}
-
-:deep(.el-form-item__label) {
-  padding-bottom: 6px;
-  font-weight: 500;
-  color: #374151;
-}
-
-.var-tip {
-  margin-top: -6px;
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.var-tag {
-  margin: 0 6px 4px 0;
-}
-
-/* 查看详情弹窗 */
-.detail-heading h2 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 800;
-  color: #111827;
-}
-
-.detail-heading p {
-  margin: 10px 0 0;
-  font-size: 15px;
-  color: #9ca3af;
-}
-
-.detail-body {
-  padding-top: 2px;
-}
-
-.detail-label {
-  margin-bottom: 12px;
-  font-size: 15px;
-  font-weight: 500;
-  color: #6b7280;
-}
-
-.detail-content {
-  padding: 22px 24px;
+/* 弹窗双栏 */
+.dialog-body { display: grid; grid-template-columns: 1fr 380px; gap: 24px; }
+.dialog-form { min-width: 0; }
+.dialog-preview {
   background: #f7f8fa;
-  border: 1px solid #eef0f4;
-  border-radius: 14px;
-  font-size: 16px;
-  line-height: 1.75;
-  color: #1f2937;
-  white-space: pre-wrap;
-}
-
-.detail-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 28px 32px;
-  margin-top: 28px;
-}
-
-.var-list {
+  border-radius: 12px;
+  padding: 16px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 60vh;
+  overflow-y: auto;
 }
+.disease-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.form-label { font-size: 13px; font-weight: 500; color: #374151; }
+.disease-chip-box { display: flex; flex-wrap: wrap; gap: 8px; }
+.pick-chip { cursor: pointer; }
+.field-tip { margin-top: 8px; font-size: 12px; color: #9ca3af; }
 
-.var-pill {
-  padding: 5px 14px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 9px;
-  font-size: 14px;
-  color: #374151;
-}
-
-.no-var {
+.question-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.question-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; background: #fff; border: 1px solid #eef0f4; border-radius: 8px;
   font-size: 13px;
-  color: #9ca3af;
+}
+.question-close { color: #9ca3af; cursor: pointer; }
+.question-close:hover { color: #dc2626; }
+.question-add { display: flex; gap: 10px; }
+.question-add .el-input { flex: 1; }
+
+/* 右侧预览 */
+.preview-tabs { display: flex; justify-content: center; }
+.preview-user { background: #fff; border-radius: 12px; padding: 14px 16px; }
+.pu-title { font-size: 12px; color: #9ca3af; margin-bottom: 6px; }
+.pu-name { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.pu-chip { margin-right: 6px; }
+.preview-chat { background: #fff; border-radius: 12px; padding: 16px; }
+.chat-row { display: flex; gap: 10px; margin-bottom: 12px; }
+.chat-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: #e0e7ff; color: #2563eb; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+}
+.chat-name { font-size: 13px; font-weight: 600; }
+.chat-sub { font-size: 12px; color: #9ca3af; }
+.chat-bubble {
+  background: #2563eb; color: #fff; border-radius: 12px 12px 12px 2px;
+  padding: 12px 14px; font-size: 13px; line-height: 1.7; margin-left: 46px;
+}
+.chat-tip { margin-top: 10px; font-size: 11px; color: #9ca3af; text-align: right; }
+.preview-priority { background: #fff; border-radius: 12px; padding: 14px 16px; }
+.pp-title { font-size: 13px; font-weight: 600; margin-bottom: 12px; display: flex; gap: 6px; align-items: center; }
+.pp-item { display: flex; gap: 10px; padding: 8px 0; }
+.pp-no {
+  width: 20px; height: 20px; border-radius: 50%; background: #eff6ff; color: #2563eb;
+  font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.pp-name { font-size: 13px; font-weight: 500; }
+.pp-sub { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+
+/* 小程序手机壳预览 */
+.mini-phone { display: flex; justify-content: center; }
+.mini-screen {
+  width: 220px; background: #f2f3f5; border: 3px solid #1f2937; border-radius: 26px;
+  padding: 12px 12px 24px; min-height: 300px;
+}
+.mini-header {
+  background: #2563eb; color: #fff; text-align: center; font-size: 14px; font-weight: 600;
+  padding: 10px 0; border-radius: 12px 12px 4px 4px; margin: -12px -12px 12px;
+}
+.mini-time { text-align: center; font-size: 11px; color: #9ca3af; margin-bottom: 12px; }
+.mini-row { display: flex; gap: 8px; align-items: flex-start; }
+.mini-avatar {
+  width: 30px; height: 30px; border-radius: 50%; background: #dbeafe; color: #2563eb;
+  display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;
+}
+.mini-bubble {
+  background: #fff; border-radius: 4px 12px 12px 12px; padding: 10px 12px;
+  font-size: 12px; line-height: 1.7; color: #1f2937; flex: 1;
 }
 
-.detail-used {
-  display: inline-block;
-  padding: 5px 14px;
-  background: #f3f4f6;
-  border-radius: 9px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #4b5563;
-}
-
-.detail-value {
-  font-size: 16px;
-  font-weight: 500;
-  color: #111827;
-}
-
-.copy-btn {
-  border-radius: 10px;
-  font-weight: 500;
-}
-
-@media (max-width: 992px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
-  .filter-row {
-    flex-wrap: wrap;
-  }
-
-  .search-input,
-  .filter-select {
-    max-width: none;
-    width: 100%;
-  }
-
-  .form-grid,
-  .detail-grid {
-    grid-template-columns: 1fr;
-  }
+@media (max-width: 1100px) {
+  .stat-row { grid-template-columns: repeat(2, 1fr); }
+  .dialog-body { grid-template-columns: 1fr; }
 }
 </style>
 
 <style>
-/* 弹窗 teleport 至 body，需用全局样式 */
-.el-dialog.tpl-dialog,
-.el-dialog.tpl-detail-dialog {
-  --el-color-primary: #2563eb;
-  border-radius: 18px;
-  overflow: hidden;
-}
+.el-dialog.tpl-dialog { --el-color-primary: #2563eb; border-radius: 16px; overflow: hidden; }
 </style>

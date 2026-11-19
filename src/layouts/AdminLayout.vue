@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore, roleProfiles, getHomePath } from '../stores/auth'
+import { ElMessage } from 'element-plus'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -10,54 +11,53 @@ const collapsed = ref(false)
 const adminRoute = router.options.routes.find((item) => item.path === '/')
 
 const menuOrder = [
-  // 医院管理
-  '/hospitalManage/dashboard',
-  '/hospitalManage/users',
-  '/hospitalManage/healthConsult',
-  // 客服
-  '/serviceChatManage',
-  '/servicePushManage',
-  // 数据统计
   '/dashboard',
-  '/dataOverview',
-  // 系统管理
-  '/dictionaries',
   '/hospital',
-  '/hospitalArea',
   '/department',
-  // 用户管理
   '/user',
+  '/userManagement',
   '/doctorManage',
   '/doctorAudit',
   '/staffManage',
-  '/scheduleManage',
-  '/nurseServiceManage',
-  '/escortServiceManage',
-  // 小程序管理
-  '/miniProgramManage',
-  '/servicePackage',
+  '/roleManage',
+  '/csManage',
+  '/stationManage',
   '/templateManage',
   '/announceManage',
   '/bannerManage',
   '/noticeDocManage',
-  // AI智能诊断
+  '/userMessageNotice',
   '/aiKnowledge',
-  // 健康咨询
+  '/accountManage',
+  // 医院端角色菜单（hospital 角色可见，保持原顺序）
+  '/hospitalManage/dashboard',
+  '/hospitalManage/users',
+  '/hospitalManage/healthConsult',
+  // 客服端角色菜单（service 角色可见，保持原顺序）
+  '/serviceChatManage',
+  '/servicePushManage',
+  // 历史/隐藏路由兜底排序
+  '/dataOverview',
+  '/dictionaries',
+  '/hospitalArea',
+  '/scheduleManage',
+  '/nurseServiceManage',
+  '/escortServiceManage',
+  '/miniProgramManage',
+  '/servicePackage',
   '/healthConsultManage',
-  // 订单管理
   '/orderManageOverview',
   '/packageOrderManage',
   '/careOrderManage',
   '/escortOrderManage',
-  // 账户系统
-  '/accountManage'
+  '/user/healthRecord'
 ]
 
 const groupParentPaths = ['/doctors']
 
 const visibleRoutes = computed(() =>
   adminRoute.children
-    .filter((child) => !child.meta?.hidden && auth.hasRole(child.meta?.roles))
+    .filter((child) => !child.meta?.hidden && (child.meta?.permission ? auth.can(child.meta.permission) : auth.hasRole(child.meta?.roles)))
     .sort((a, b) => menuOrder.indexOf(a.path) - menuOrder.indexOf(b.path))
 )
 
@@ -92,7 +92,16 @@ const menuItems = computed(() => {
 })
 
 const activeMenu = computed(() => route.path)
-const profile = computed(() => roleProfiles[auth.role] || roleProfiles.admin)
+const profile = computed(() => {
+  const fallback = roleProfiles[auth.role] || roleProfiles.admin
+  const u = auth.user || {}
+  const name = u.username || u.name || fallback.name
+  return {
+    name,
+    label: auth.roleName || fallback.label || '',
+    avatar: name ? String(name).slice(0, 1) : fallback.avatar
+  }
+})
 const breadcrumbs = computed(() => {
   const list = [{ title: '首页', path: getHomePath(auth.role) }]
 
@@ -115,10 +124,25 @@ const defaultOpenedGroups = computed(() =>
   menuItems.value.filter((item) => item.type === 'group').map((item) => item.title)
 )
 
-const handleCommand = (command) => {
+const switchableRoles = computed(() => (Array.isArray(auth.roles) ? auth.roles : []).filter((item) => item.code))
+
+const handleCommand = async (command) => {
   if (command === 'logout') {
-    auth.logout()
-    router.push('/login')
+    await auth.logout()
+    ElMessage.success('已退出登录')
+    router.replace('/login')
+  }
+}
+
+// 已登录切换角色：换 token 后整页重载，清空缓存并重新拉取菜单与首页数据
+const handleSwitchRole = async (roleItem) => {
+  if (!roleItem || roleItem.code === auth.role) return
+  try {
+    await auth.switchRole(roleItem.code)
+    ElMessage.success('已切换角色：' + (roleItem.name || roleItem.code))
+    window.location.assign(getHomePath(roleItem.code))
+  } catch (err) {
+    ElMessage.error(err?.message || '角色切换失败')
   }
 }
 </script>
@@ -238,6 +262,17 @@ const handleCommand = (command) => {
                 <el-dropdown-item disabled>用户：{{ auth.user.username }}</el-dropdown-item>
                 <el-dropdown-item disabled>姓名：{{ profile.name }}</el-dropdown-item>
                 <el-dropdown-item disabled>角色：{{ profile.label }}</el-dropdown-item>
+                <template v-if="switchableRoles.length > 1">
+                  <el-dropdown-item divided disabled>切换角色</el-dropdown-item>
+                  <el-dropdown-item
+                    v-for="roleItem in switchableRoles"
+                    :key="roleItem.code"
+                    :disabled="roleItem.code === auth.role"
+                    @click.stop="handleSwitchRole(roleItem)"
+                  >
+                    {{ roleItem.name }}
+                  </el-dropdown-item>
+                </template>
                 <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>

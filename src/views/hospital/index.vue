@@ -1,56 +1,86 @@
 <script setup>
-import { useTablePage } from '../../composables/useTablePage'
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  getDictOverview,
+  getDictHospitalPage,
+  createDictHospital,
+  updateDictHospitalById,
+  deleteDictHospitalById
+} from '../../api/index.js'
 
 // 字典项
-const levels = ['三甲', '三乙', '二甲', '二乙']
-const types = ['综合医院', '专科医院', '中医医院', '中西医结合医院']
-const statuses = ['正常', '停用']
-
-const provinceCityMap = {
-  北京市: ['东城区', '西城区', '海淀区', '朝阳区'],
-  上海市: ['黄浦区', '徐汇区', '静安区', '浦东新区'],
-  广东省: ['广州市', '深圳市', '佛山市', '东莞市'],
-  浙江省: ['杭州市', '宁波市', '温州市', '绍兴市']
-}
-const provinces = Object.keys(provinceCityMap)
-
-// 模拟数据
-const hospitals = ref([
-  { id: 1, name: '北京协和医院', level: '三甲', type: '综合医院', province: '北京市', city: '东城区', address: '帅府园1号', phone: '010-69156114', status: '正常', intro: '' },
-  { id: 2, name: '北京大学人民医院', level: '三甲', type: '综合医院', province: '北京市', city: '西城区', address: '西直门南大街11号', phone: '010-88324600', status: '正常', intro: '' },
-  { id: 3, name: '复旦大学附属中山医院', level: '三甲', type: '综合医院', province: '上海市', city: '徐汇区', address: '枫林路180号', phone: '021-64041990', status: '正常', intro: '' },
-  { id: 4, name: '广东省人民医院', level: '三甲', type: '综合医院', province: '广东省', city: '广州市', address: '中山二路106号', phone: '020-83827812', status: '正常', intro: '' },
-  { id: 5, name: '温州眼科医院', level: '二甲', type: '专科医院', province: '浙江省', city: '温州市', address: '学院西路270号', phone: '0577-88061366', status: '正常', intro: '' }
-])
+// 等级/类型枚举与后端 /dict/hospitals 对齐
+const levels = ['三甲', '三乙', '二甲', '二乙', '一甲', '专科']
+const types = ['综合', '专科', '中医', '妇幼保健院']
+const STATUS_ENABLED = 1
+const STATUS_DISABLED = 0
+const STATUS_TEXT = { [STATUS_ENABLED]: '正常', [STATUS_DISABLED]: '停用' }
+const statuses = [STATUS_ENABLED, STATUS_DISABLED]
 
 // 筛选
 const keyword = ref('')
 const filterLevel = ref('')
 const filterType = ref('')
 
-const filteredHospitals = computed(() => {
-  const word = keyword.value.trim()
-  return hospitals.value.filter((item) => {
-    const matchWord =
-      !word ||
-      item.name.includes(word) ||
-      `${item.province}${item.city}${item.address}`.includes(word) ||
-      item.phone.includes(word)
-    const matchLevel = !filterLevel.value || item.level === filterLevel.value
-    const matchType = !filterType.value || item.type === filterType.value
-    return matchWord && matchLevel && matchType
-  })
-})
+// 服务端分页与列表
+const loading = ref(false)
+const tableData = ref([])
+const total = ref(0)
+const page = ref(1)
+const pageSize = ref(10)
 
-// 统计
+// 机构概览统计：GET /dict/overview
+const overview = ref({ hospitalCount: 0, departmentCount: 0, doctorCount: 0, provinceCount: 0 })
 const stats = computed(() => [
-  { label: '医院总数', value: hospitals.value.length, unit: '家', desc: '医疗机构', icon: 'OfficeBuilding', theme: 'blue' },
-  { label: '三甲医院', value: hospitals.value.filter((h) => h.level === '三甲').length, unit: '家', desc: '三甲等级医院', icon: 'Medal', theme: 'red' },
-  { label: '专科医院', value: hospitals.value.filter((h) => h.type === '专科医院').length, unit: '家', desc: '专科医疗机构', icon: 'FirstAidKit', theme: 'cyan' },
-  { label: '覆盖省份', value: new Set(hospitals.value.map((h) => h.province)).size, unit: '个', desc: '全国覆盖省份', icon: 'Location', theme: 'green' }
+  { label: '医院总数', value: overview.value.hospitalCount, unit: '家', desc: '医疗机构', icon: 'OfficeBuilding', theme: 'blue' },
+  { label: '科室数量', value: overview.value.departmentCount, unit: '个', desc: '已建科室字典', icon: 'Medal', theme: 'red' },
+  { label: '医生数量', value: overview.value.doctorCount, unit: '位', desc: '在册医生字典', icon: 'FirstAidKit', theme: 'cyan' },
+  { label: '覆盖省份', value: overview.value.provinceCount, unit: '个', desc: '全国覆盖省份', icon: 'Location', theme: 'green' }
 ])
+
+const buildQuery = () => {
+  const params = { page: page.value, pageSize: pageSize.value }
+  const word = keyword.value.trim()
+  if (word) params.keyword = word
+  if (filterLevel.value) params.level = filterLevel.value
+  if (filterType.value) params.type = filterType.value
+  return params
+}
+
+const fetchOverview = async () => {
+  try {
+    const res = await getDictOverview()
+    overview.value = res || {}
+  } catch {
+    overview.value = {}
+  }
+}
+
+const fetchList = async () => {
+  loading.value = true
+  try {
+    const res = await getDictHospitalPage(buildQuery())
+    tableData.value = res?.list || []
+    total.value = Number(res?.total) || 0
+  } catch {
+    tableData.value = []
+    total.value = 0
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleSearch = () => { page.value = 1; fetchList() }
+const handleReset = () => {
+  keyword.value = ''
+  filterLevel.value = ''
+  filterType.value = ''
+  page.value = 1
+  fetchList()
+}
+const handlePageChange = (p) => { page.value = p; fetchList() }
+const handleSizeChange = (size) => { pageSize.value = size; page.value = 1; fetchList() }
 
 // 弹窗表单
 const dialogVisible = ref(false)
@@ -58,16 +88,16 @@ const isEdit = ref(false)
 const formRef = ref()
 
 const createForm = () => ({
-  id: null,
+  id: '',
   name: '',
   level: '三甲',
-  type: '综合医院',
+  type: '综合',
   province: '',
   city: '',
   address: '',
   phone: '',
-  status: '正常',
-  intro: ''
+  description: '',
+  status: STATUS_ENABLED
 })
 
 const form = reactive(createForm())
@@ -81,8 +111,6 @@ const rules = {
   phone: [{ pattern: /^[\d-]{7,15}$/, message: '请输入正确的联系电话', trigger: 'blur' }]
 }
 
-const cityOptions = computed(() => provinceCityMap[form.province] || [])
-
 const resetForm = () => Object.assign(form, createForm())
 
 const openAdd = () => {
@@ -93,29 +121,54 @@ const openAdd = () => {
 }
 
 const openEdit = (row) => {
-  Object.assign(form, row)
+  resetForm()
+  form.id = String(row.id)
+  form.name = row.name || ''
+  form.level = row.level || ''
+  form.type = row.type || ''
+  form.province = row.province || ''
+  form.city = row.city || ''
+  form.address = row.address || ''
+  form.phone = row.phone || ''
+  form.description = row.description || ''
+  form.status = Number(row.status) === STATUS_DISABLED ? STATUS_DISABLED : STATUS_ENABLED
   isEdit.value = true
   dialogVisible.value = true
   formRef.value?.clearValidate()
 }
 
-const onProvinceChange = () => {
-  form.city = ''
-}
+const buildPayload = () => ({
+  name: form.name,
+  level: form.level || undefined,
+  type: form.type || undefined,
+  province: form.province || undefined,
+  city: form.city || undefined,
+  address: form.address || undefined,
+  phone: form.phone || undefined,
+  description: form.description || undefined,
+  status: form.status
+})
 
-const handleSubmit = () => {
-  formRef.value.validate((valid) => {
-    if (!valid) return
+const submitting = ref(false)
+const handleSubmit = async () => {
+  await formRef.value.validate()
+  submitting.value = true
+  try {
     if (isEdit.value) {
-      const target = hospitals.value.find((item) => item.id === form.id)
-      Object.assign(target, form)
+      await updateDictHospitalById(form.id, buildPayload())
       ElMessage.success('医院信息已更新')
     } else {
-      hospitals.value.unshift({ ...form, id: Date.now() })
+      await createDictHospital(buildPayload())
       ElMessage.success('医院添加成功')
     }
     dialogVisible.value = false
-  })
+    fetchList()
+    fetchOverview()
+  } catch (err) {
+    ElMessage.error(err?.message || '保存失败')
+  } finally {
+    submitting.value = false
+  }
 }
 
 const handleDelete = (row) => {
@@ -123,12 +176,23 @@ const handleDelete = (row) => {
     type: 'warning',
     confirmButtonText: '删除',
     cancelButtonText: '取消'
-  }).then(() => {
-    hospitals.value = hospitals.value.filter((item) => item.id !== row.id)
-    ElMessage.success('医院已删除')
+  }).then(async () => {
+    try {
+      await deleteDictHospitalById(String(row.id))
+      ElMessage.success('医院已删除')
+      if (tableData.value.length === 1 && page.value > 1) page.value -= 1
+      fetchList()
+      fetchOverview()
+    } catch (err) {
+      ElMessage.error(err?.message || '删除失败')
+    }
   }).catch(() => {})
 }
-const { page: hpPage, pageSize: hpSize, pagedData: pagedHospitals, total: hpTotal } = useTablePage(filteredHospitals)
+
+onMounted(() => {
+  fetchOverview()
+  fetchList()
+})
 </script>
 <template>
   <div class="hospital-page">
@@ -163,18 +227,27 @@ const { page: hpPage, pageSize: hpSize, pagedData: pagedHospitals, total: hpTota
     <div class="panel filter-card">
       <div class="card-label">筛选条件</div>
       <div class="filter-row">
-        <el-input v-model="keyword" class="search-input" size="large" clearable
-          placeholder="搜索医院名称、地址或电话...">
+        <el-input
+          v-model="keyword"
+          class="search-input"
+          size="large"
+          clearable
+          placeholder="搜索医院名称、地址或电话..."
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
+        >
           <template #prefix>
             <el-icon><Search /></el-icon>
           </template>
         </el-input>
-        <el-select v-model="filterLevel" class="filter-select" size="large" clearable placeholder="全部等级">
+        <el-select v-model="filterLevel" class="filter-select" size="large" clearable placeholder="全部等级" @change="handleSearch">
           <el-option v-for="level in levels" :key="level" :label="level" :value="level" />
         </el-select>
-        <el-select v-model="filterType" class="filter-select" size="large" clearable placeholder="全部类型">
+        <el-select v-model="filterType" class="filter-select" size="large" clearable placeholder="全部类型" @change="handleSearch">
           <el-option v-for="type in types" :key="type" :label="type" :value="type" />
         </el-select>
+        <el-button type="primary" size="large" @click="handleSearch">查询</el-button>
+        <el-button size="large" @click="handleReset">重置</el-button>
       </div>
     </div>
 
@@ -182,9 +255,9 @@ const { page: hpPage, pageSize: hpSize, pagedData: pagedHospitals, total: hpTota
     <div class="panel table-card">
       <div class="table-head">
         <h3>医院列表</h3>
-        <span class="table-total">共 {{ filteredHospitals.length }} 家医院</span>
+        <span class="table-total">共 {{ total }} 家医院</span>
       </div>
-      <el-table :data="pagedHospitals" stripe>
+      <el-table v-loading="loading" :data="tableData" stripe>
         <el-table-column prop="name" label="医院名称" min-width="200" show-overflow-tooltip />
         <el-table-column prop="level" label="等级" width="90" />
         <el-table-column prop="type" label="类型" width="120" />
@@ -194,12 +267,12 @@ const { page: hpPage, pageSize: hpSize, pagedData: pagedHospitals, total: hpTota
         <el-table-column prop="phone" label="联系电话" width="150" />
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.status === '正常' ? 'success' : 'info'" effect="dark" size="small" round>
-              {{ row.status }}
+            <el-tag :type="Number(row.status) === 1 ? 'success' : 'info'" effect="dark" size="small" round>
+              {{ STATUS_TEXT[Number(row.status)] || '-' }}
             </el-tag>
           </template>
         </el-table-column>
-                <el-table-column label="操作" width="110" fixed="right" align="center">
+        <el-table-column label="操作" width="110" fixed="right" align="center">
           <template #default="{ row }">
             <el-tooltip content="编辑" placement="top">
               <el-button type="primary" link @click="openEdit(row)"><el-icon><Edit /></el-icon></el-button>
@@ -216,12 +289,13 @@ const { page: hpPage, pageSize: hpSize, pagedData: pagedHospitals, total: hpTota
       <el-pagination
         class="list-pager"
         background
-        v-model:current-page="hpPage"
-        v-model:page-size="hpSize"
+        :current-page="page"
+        :page-size="pageSize"
         :page-sizes="[10, 20, 50, 100]"
-        :total="hpTotal"
+        :total="total"
         layout="total, prev, pager, next, sizes"
-        @size-change="hpPage = 1"
+        @current-change="handlePageChange"
+        @size-change="handleSizeChange"
       />
     </div>
     <!-- 添加/编辑弹窗 -->
@@ -248,15 +322,10 @@ const { page: hpPage, pageSize: hpSize, pagedData: pagedHospitals, total: hpTota
           </el-select>
         </el-form-item>
         <el-form-item label="省份" prop="province">
-          <el-select v-model="form.province" class="full-control" placeholder="如：北京市"
-            @change="onProvinceChange">
-            <el-option v-for="province in provinces" :key="province" :label="province" :value="province" />
-          </el-select>
+          <el-input v-model="form.province" size="large" placeholder="如：北京市" />
         </el-form-item>
         <el-form-item label="城市" prop="city">
-          <el-select v-model="form.city" class="full-control" placeholder="如：东城区">
-            <el-option v-for="city in cityOptions" :key="city" :label="city" :value="city" />
-          </el-select>
+          <el-input v-model="form.city" size="large" placeholder="如：东城区" />
         </el-form-item>
         <el-form-item label="详细地址" prop="address" class="full">
           <el-input v-model="form.address" size="large" placeholder="请输入详细地址" />
@@ -266,18 +335,23 @@ const { page: hpPage, pageSize: hpSize, pagedData: pagedHospitals, total: hpTota
         </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-select v-model="form.status" class="full-control">
-            <el-option v-for="status in statuses" :key="status" :label="status" :value="status" />
+            <el-option
+              v-for="status in statuses"
+              :key="status"
+              :label="STATUS_TEXT[status]"
+              :value="status"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="简介" prop="intro" class="full">
-          <el-input v-model="form.intro" type="textarea" :rows="3"
+        <el-form-item label="简介" prop="description" class="full">
+          <el-input v-model="form.description" type="textarea" :rows="3"
             placeholder="请输入医院简介" />
         </el-form-item>
       </el-form>
 
       <template #footer>
         <el-button size="large" @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" size="large" @click="handleSubmit">
+        <el-button type="primary" size="large" :loading="submitting" @click="handleSubmit">
           {{ isEdit ? '保存修改' : '确认添加' }}
       </el-button>
       </template>

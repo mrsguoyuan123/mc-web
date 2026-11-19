@@ -1,107 +1,183 @@
 <script setup>
-import { useTablePage } from '../../composables/useTablePage'
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  getAllAppBanners,
+  createAppBanner,
+  updateAppBannerById,
+  deleteAppBannerById,
+  updateAppBannerStatusById,
+  sortAppBanners
+} from '../../api/index.js'
 
-// 展示位置
-const positionOptions = ['首页', '医生页', '健康咨询', '服务页']
+// 展示位置：后端枚举 HOME/DOCTOR/SERVICE/HEALTH
+const POSITION_OPTIONS = [
+  { value: 'HOME', label: '首页' },
+  { value: 'DOCTOR', label: '医生页' },
+  { value: 'SERVICE', label: '服务页' },
+  { value: 'HEALTH', label: '健康咨询' }
+]
+const positionLabel = (value) => POSITION_OPTIONS.find((item) => item.value === value)?.label || value || '-'
 
-// Banner 模拟数据
-const banners = ref([
-  {
-    id: 1, title: '春季健康体检优惠', desc: '全套体检套餐8折优惠', position: '首页', sort: 1,
-    start: '2026-02-01', end: '2026-03-31', enabled: true,
-    image: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=900',
-    link: '/service/health-check'
-  },
-  {
-    id: 2, title: '儿科专家团队', desc: '资深儿科医生为您服务', position: '医生页', sort: 1,
-    start: '2026-01-01', end: '2026-12-31', enabled: true,
-    image: 'https://images.unsplash.com/photo-1551601651-2a8555f1a136?w=900',
-    link: '/doctor/pediatrics'
-  },
-  {
-    id: 3, title: '健康讲座', desc: '每周三下午2点健康讲座', position: '健康咨询', sort: 1,
-    start: '2026-02-01', end: '2026-12-31', enabled: false,
-    image: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?w=900',
-    link: '/consult/lecture'
-  },
-  {
-    id: 4, title: '专家在线问诊', desc: '三甲医院专家在线解答', position: '首页', sort: 2,
-    start: '2026-02-01', end: '2026-12-31', enabled: true,
-    image: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=900',
-    link: '/consult/online'
-  }
-])
+const loading = ref(false)
+const banners = ref([])
 
 // 筛选
 const filterPosition = ref('')
+
 const filtered = computed(() =>
   banners.value
     .filter((b) => !filterPosition.value || b.position === filterPosition.value)
-    .sort((a, b) => a.sort - b.sort)
+    .slice()
+    .sort((a, b) => (a.sortNo ?? 0) - (b.sortNo ?? 0))
 )
 
-// 上下箭头排序（同位置内调整）
-const move = (row, dir) => {
-  const list = filtered.value
-  const idx = list.findIndex((b) => b.id === row.id)
-  const target = list[idx + dir]
-  if (!target) return
-  const tmp = row.sort
-  row.sort = target.sort
-  target.sort = tmp
+// 前端分页（接口为全量数组）
+const page = ref(1)
+const pageSize = ref(10)
+const pagedBanners = computed(() => {
+  const start = (page.value - 1) * pageSize.value
+  return filtered.value.slice(start, start + pageSize.value)
+})
+const total = computed(() => filtered.value.length)
+const handlePageChange = (p) => { page.value = p }
+const handleSizeChange = (size) => { pageSize.value = size; page.value = 1 }
+
+const fetchList = async () => {
+  loading.value = true
+  try {
+    const res = await getAllAppBanners()
+    // 兼容后端返回数组或分页对象 { list, total }
+    banners.value = Array.isArray(res) ? res : (res?.list || [])
+  } catch (err) {
+    banners.value = []
+    ElMessage.error(err?.message || 'Banner 加载失败')
+  } finally {
+    loading.value = false
+  }
 }
 
-// 新增 / 编辑弹窗
+// 同位置内上下移动，调用排序接口整体提交
+const move = async (row, dir) => {
+  const list = filtered.value
+  const idx = list.findIndex((b) => String(b.id) === String(row.id))
+  const targetIdx = idx + dir
+  if (idx < 0 || targetIdx < 0 || targetIdx >= list.length) return
+  const reordered = list.slice()
+  const [current] = reordered.splice(idx, 1)
+  reordered.splice(targetIdx, 0, current)
+  // 乐观更新 sortNo
+  reordered.forEach((item, i) => { item.sortNo = i + 1 })
+  try {
+    await sortAppBanners({ position: row.position, ids: reordered.map((item) => String(item.id)) })
+    ElMessage.success('排序已更新')
+    fetchList()
+  } catch (err) {
+    ElMessage.error(err?.message || '排序失败')
+    fetchList()
+  }
+}
+
+// 新增 / 编辑
 const formVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref()
+const submitting = ref(false)
 const createForm = () => ({
-  id: null, title: '', desc: '', image: '', link: '',
-  position: '', enabled: true, start: '', end: ''
+  id: '',
+  title: '',
+  description: '',
+  imageUrl: '',
+  linkUrl: '',
+  position: '',
+  sortNo: undefined,
+  enabled: 1,
+  startDate: '',
+  endDate: ''
 })
 const form = reactive(createForm())
 const rules = {
   title: [{ required: true, message: '请输入Banner标题', trigger: 'blur' }],
-  image: [{ required: true, message: '请输入图片URL', trigger: 'blur' }],
+  imageUrl: [{ required: true, message: '请输入图片URL', trigger: 'blur' }],
   position: [{ required: true, message: '请选择展示位置', trigger: 'change' }]
 }
 
+const resetForm = () => Object.assign(form, createForm())
+
 const openAdd = () => {
-  Object.assign(form, createForm())
+  resetForm()
   isEdit.value = false
   formVisible.value = true
   formRef.value?.clearValidate()
 }
+
 const openEdit = (row) => {
-  Object.assign(form, JSON.parse(JSON.stringify(row)))
+  resetForm()
   isEdit.value = true
+  form.id = String(row.id)
+  form.title = row.title || ''
+  form.description = row.description || ''
+  form.imageUrl = row.imageUrl || ''
+  form.linkUrl = row.linkUrl || ''
+  form.position = row.position || ''
+  form.sortNo = row.sortNo
+  form.enabled = Number(row.enabled) === 0 ? 0 : 1
+  form.startDate = row.startDate || ''
+  form.endDate = row.endDate || ''
   previewVisible.value = false
   formVisible.value = true
   formRef.value?.clearValidate()
 }
 
-const handleSubmit = () => {
-  formRef.value.validate((valid) => {
-    if (!valid) return
-    if (form.id) {
-      Object.assign(banners.value.find((b) => b.id === form.id), JSON.parse(JSON.stringify(form)))
+const buildPayload = () => ({
+  title: form.title,
+  description: form.description || undefined,
+  imageUrl: form.imageUrl,
+  linkUrl: form.linkUrl || undefined,
+  position: form.position,
+  sortNo: form.sortNo === undefined || form.sortNo === '' ? undefined : Number(form.sortNo),
+  enabled: form.enabled,
+  startDate: form.startDate || undefined,
+  endDate: form.endDate || undefined
+})
+
+const handleSubmit = async () => {
+  await formRef.value.validate()
+  submitting.value = true
+  try {
+    if (isEdit.value) {
+      await updateAppBannerById(form.id, buildPayload())
       ElMessage.success('Banner已更新')
     } else {
-      const samePos = banners.value.filter((b) => b.position === form.position)
-      banners.value.push({
-        ...JSON.parse(JSON.stringify(form)),
-        id: Date.now(),
-        sort: samePos.length ? Math.max(...samePos.map((b) => b.sort)) + 1 : 1
-      })
+      await createAppBanner(buildPayload())
       ElMessage.success('Banner已添加')
     }
     formVisible.value = false
-  })
+    fetchList()
+  } catch (err) {
+    ElMessage.error(err?.message || '保存失败')
+  } finally {
+    submitting.value = false
+  }
 }
 
-// 预览弹窗
+// 启停 switch
+const statusLoadingId = ref('')
+const onStatusChange = async (row) => {
+  const next = Number(row.enabled) === 1 ? 0 : 1
+  statusLoadingId.value = String(row.id)
+  try {
+    await updateAppBannerStatusById(String(row.id), next)
+    row.enabled = next
+    ElMessage.success(next === 1 ? '已启用' : '已停用')
+  } catch (err) {
+    ElMessage.error(err?.message || '状态更新失败')
+  } finally {
+    statusLoadingId.value = ''
+  }
+}
+
+// 预览
 const previewVisible = ref(false)
 const preview = ref(null)
 const openPreview = (row) => {
@@ -109,16 +185,27 @@ const openPreview = (row) => {
   previewVisible.value = true
 }
 
-// 删除
+// 删除（二次确认，文案按产品要求动态拼接标题）
 const handleDelete = (row) => {
-  ElMessageBox.confirm(`确认删除Banner「${row.title}」吗？`, '删除确认', {
-    type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消'
-  }).then(() => {
-    banners.value = banners.value.filter((b) => b.id !== row.id)
-    ElMessage.success('Banner已删除')
+  ElMessageBox.confirm(
+    `将删除“${row.title}”。删除后小程序对应位置将不再展示该内容，历史发布记录请通过操作日志查看。`,
+    '删除宣教内容？',
+    { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
+  ).then(async () => {
+    try {
+      await deleteAppBannerById(String(row.id))
+      ElMessage.success('Banner已删除')
+      if (pagedBanners.value.length === 1 && page.value > 1) page.value -= 1
+      fetchList()
+    } catch (err) {
+      ElMessage.error(err?.message || '删除失败')
+    }
   }).catch(() => {})
 }
-const { page: bmPage, pageSize: bmSize, pagedData: pagedBanners, total: bmTotal } = useTablePage(filtered)
+
+onMounted(() => {
+  fetchList()
+})
 </script>
 <template>
   <div class="banner-page">
@@ -136,46 +223,67 @@ const { page: bmPage, pageSize: bmSize, pagedData: pagedBanners, total: bmTotal 
     <div class="panel filter-card">
       <span class="filter-label">展示位置：</span>
       <el-select v-model="filterPosition" class="filter-select" size="large" clearable placeholder="全部位置">
-        <el-option v-for="p in positionOptions" :key="p" :label="p" :value="p" />
+        <el-option
+          v-for="item in POSITION_OPTIONS"
+          :key="item.value"
+          :label="item.label"
+          :value="item.value"
+        />
       </el-select>
     </div>
 
     <!-- Banner列表 -->
     <div class="panel table-card">
-      <el-table :data="pagedBanners" stripe>
+      <el-table v-loading="loading" :data="pagedBanners" stripe>
         <el-table-column label="预览" width="110">
           <template #default="{ row }">
-            <el-image :src="row.image" fit="cover" class="thumb">
+            <el-image :src="row.imageUrl" fit="cover" class="thumb">
               <template #error><div class="img-fallback"><el-icon><Picture /></el-icon></div></template>
             </el-image>
           </template>
         </el-table-column>
-        <el-table-column label="标题" prop="title" min-width="150" />
-        <el-table-column label="描述" prop="desc" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="title" label="标题" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="description" label="描述" min-width="180" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.description || '-' }}</template>
+        </el-table-column>
         <el-table-column label="展示位置" min-width="110">
-          <template #default="{ row }"><span class="pos-tag">{{ row.position }}</span></template>
+          <template #default="{ row }"><span class="pos-tag">{{ positionLabel(row.position) }}</span></template>
         </el-table-column>
         <el-table-column label="排序" width="80" align="center">
           <template #default="{ row, $index }">
             <div class="sort-cell">
-              <span>{{ row.sort }}</span>
+              <span>{{ row.sortNo ?? 0 }}</span>
               <div class="sort-arrows">
-                <el-icon class="sort-arrow" :class="{ disabled: $index === 0 }" @click="move(row, -1)"><CaretTop /></el-icon>
-                <el-icon class="sort-arrow" :class="{ disabled: $index === filtered.length - 1 }" @click="move(row, 1)"><CaretBottom /></el-icon>
+                <el-icon
+                  class="sort-arrow"
+                  :class="{ disabled: $index === 0 }"
+                  @click="move(row, -1)"
+                ><CaretTop /></el-icon>
+                <el-icon
+                  class="sort-arrow"
+                  :class="{ disabled: $index === filtered.length - 1 }"
+                  @click="move(row, 1)"
+                ><CaretBottom /></el-icon>
               </div>
             </div>
           </template>
         </el-table-column>
         <el-table-column label="有效期" min-width="170">
           <template #default="{ row }">
-            <div class="date-cell">{{ row.start }}</div>
-            <div class="date-cell sub">至 {{ row.end }}</div>
+            <div class="date-cell">{{ row.startDate || '-' }}</div>
+            <div class="date-cell sub">至 {{ row.endDate || '-' }}</div>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="80">
-          <template #default="{ row }"><el-switch v-model="row.enabled" /></template>
+        <el-table-column label="状态" width="90">
+          <template #default="{ row }">
+            <el-switch
+              :model-value="Number(row.enabled) === 1"
+              :loading="statusLoadingId === String(row.id)"
+              @change="onStatusChange(row)"
+            />
+          </template>
         </el-table-column>
-                <el-table-column label="操作" width="140" fixed="right" align="center">
+        <el-table-column label="操作" width="140" fixed="right" align="center">
           <template #default="{ row }">
             <el-tooltip content="预览" placement="top">
               <el-button type="primary" link @click="openPreview(row)"><el-icon><View /></el-icon></el-button>
@@ -195,15 +303,15 @@ const { page: bmPage, pageSize: bmSize, pagedData: pagedBanners, total: bmTotal 
       <el-pagination
         class="list-pager"
         background
-        v-model:current-page="bmPage"
-        v-model:page-size="bmSize"
+        :current-page="page"
+        :page-size="pageSize"
         :page-sizes="[10, 20, 50, 100]"
-        :total="bmTotal"
+        :total="total"
         layout="total, prev, pager, next, sizes"
-        @size-change="bmPage = 1"
+        @current-change="handlePageChange"
+        @size-change="handleSizeChange"
       />
     </div>
-
     <!-- 添加 / 编辑弹窗 -->
     <el-dialog v-model="formVisible" :width="640" class="banner-dialog">
       <template #header>
@@ -218,62 +326,82 @@ const { page: bmPage, pageSize: bmSize, pagedData: pagedBanners, total: bmTotal 
           <el-input v-model="form.title" size="large" placeholder="请输入Banner标题" />
         </el-form-item>
         <el-form-item label="描述">
-          <el-input v-model="form.desc" type="textarea" :rows="2" resize="none" placeholder="请输入Banner描述" />
+          <el-input v-model="form.description" type="textarea" :rows="2" resize="none" placeholder="请输入Banner描述" />
         </el-form-item>
-        <el-form-item label="图片URL" prop="image">
-          <el-input v-model="form.image" size="large" placeholder="https://example.com/banner.jpg" />
+        <el-form-item label="图片URL" prop="imageUrl">
+          <el-input v-model="form.imageUrl" size="large" placeholder="https://example.com/banner.jpg" />
         </el-form-item>
-        <el-image v-if="form.image" :src="form.image" fit="cover" class="form-preview">
+        <el-image v-if="form.imageUrl" :src="form.imageUrl" fit="cover" class="form-preview">
           <template #error><div class="img-fallback">图片加载失败</div></template>
         </el-image>
         <el-form-item label="跳转链接">
-          <el-input v-model="form.link" size="large" placeholder="/page/path 或 https://example.com" />
+          <el-input v-model="form.linkUrl" size="large" placeholder="/page/path 或 https://example.com" />
         </el-form-item>
         <div class="form-grid">
           <el-form-item label="展示位置" prop="position">
             <el-select v-model="form.position" class="full-control" size="large" placeholder="请选择展示位置">
-              <el-option v-for="p in positionOptions" :key="p" :label="p" :value="p" />
+              <el-option
+                v-for="item in POSITION_OPTIONS"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
             </el-select>
+          </el-form-item>
+          <el-form-item label="排序号">
+            <el-input-number v-model="form.sortNo" :min="1" controls-position="right" class="full-control" placeholder="数字越小越靠前" />
           </el-form-item>
           <el-form-item label="启用状态">
             <div class="switch-line">
-              <el-switch v-model="form.enabled" />
-              <span>{{ form.enabled ? '已启用' : '已停用' }}</span>
+              <el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" />
+              <span>{{ form.enabled === 1 ? '已启用' : '已停用' }}</span>
             </div>
           </el-form-item>
           <el-form-item label="开始日期">
-            <el-date-picker v-model="form.start" type="date" class="full-control" size="large"
-              value-format="YYYY-MM-DD" placeholder="年 / 月 / 日" />
+            <el-date-picker
+              v-model="form.startDate"
+              type="date"
+              class="full-control"
+              size="large"
+              value-format="YYYY-MM-DD"
+              placeholder="年 / 月 / 日"
+            />
           </el-form-item>
           <el-form-item label="结束日期">
-            <el-date-picker v-model="form.end" type="date" class="full-control" size="large"
-              value-format="YYYY-MM-DD" placeholder="年 / 月 / 日" />
+            <el-date-picker
+              v-model="form.endDate"
+              type="date"
+              class="full-control"
+              size="large"
+              value-format="YYYY-MM-DD"
+              placeholder="年 / 月 / 日"
+            />
           </el-form-item>
         </div>
       </el-form>
 
       <template #footer>
         <el-button size="large" @click="formVisible = false">取消</el-button>
-        <el-button type="primary" class="btn-blue" size="large" @click="handleSubmit">保存</el-button>
+        <el-button type="primary" class="btn-blue" size="large" :loading="submitting" @click="handleSubmit">保存</el-button>
       </template>
     </el-dialog>
 
     <!-- 预览弹窗 -->
     <el-dialog v-model="previewVisible" width="640" class="banner-dialog preview-dialog" title="Banner预览">
       <div v-if="preview" class="preview-body">
-        <el-image :src="preview.image" fit="cover" class="preview-image">
+        <el-image :src="preview.imageUrl" fit="cover" class="preview-image">
           <template #error><div class="img-fallback">图片加载失败</div></template>
         </el-image>
         <div class="preview-tags">
-          <span class="pos-tag">{{ preview.position }}</span>
-          <span class="status-tag" :class="preview.enabled ? 'on' : 'off'">
-            {{ preview.enabled ? '已启用' : '已停用' }}
+          <span class="pos-tag">{{ positionLabel(preview.position) }}</span>
+          <span class="status-tag" :class="Number(preview.enabled) === 1 ? 'on' : 'off'">
+            {{ Number(preview.enabled) === 1 ? '已启用' : '已停用' }}
           </span>
         </div>
         <h3 class="preview-title">{{ preview.title }}</h3>
-        <p class="preview-desc">{{ preview.desc }}</p>
-        <p class="preview-meta">跳转链接：{{ preview.link || '—' }}</p>
-        <p class="preview-meta">有效期：{{ preview.start }} 至 {{ preview.end }}</p>
+        <p class="preview-desc">{{ preview.description || '-' }}</p>
+        <p class="preview-meta">跳转链接：{{ preview.linkUrl || '—' }}</p>
+        <p class="preview-meta">有效期：{{ preview.startDate || '-' }} 至 {{ preview.endDate || '-' }}</p>
       </div>
       <template #footer>
         <el-button size="large" @click="previewVisible = false">关闭</el-button>
@@ -281,6 +409,7 @@ const { page: bmPage, pageSize: bmSize, pagedData: pagedBanners, total: bmTotal 
     </el-dialog>
   </div>
 </template>
+
 <style scoped>
 .banner-page {
   --el-color-primary: #2563eb;

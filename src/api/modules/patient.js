@@ -14,6 +14,7 @@
  */
 
 import { http } from '../frontApikit.js'
+import { uploadFile } from './file.js'
 
 /** 把已知雪花 ID 字段安全转为字符串（仅处理存在且非空的字段，不改变其他字段） */
 function stringifyIdFields(obj, idKeys) {
@@ -355,9 +356,147 @@ export function updatePatientEscortQuotaById(id, quota) {
   return http.put(`/patients/${encodeURIComponent(String(id))}/escort-quota`, undefined, { params: { quota } })
 }
 
+/* -------------------------------------------------------------------------- */
+/*  批量操作（路径待后端确认，先提供占位函数保证页面可正常调用）                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 批量分配客服（待后端补路径）
+ * TODO: 路径待后端确认，预期 POST /patients/batch/assign-cs 或 PUT /patients/batch-match
+ * 当前为占位空函数：直接 resolve(null)，页面按成功流程走提示/刷新/清空勾选；
+ * 路径确认后替换为 http.post('/patients/batch/assign-cs', payload)
+ * @param {Object} payload 请求体
+ * @param {string[]} payload.patientIds 患者 ID 数组（雪花 ID 字符串，必填）
+ * @param {string} payload.csId 客服 ID（雪花 ID 字符串，必填）
+ * @returns {Promise<null>} 占位实现恒返回 null
+ */
+export function batchAssignPatientsCs(payload = {}) {
+  // 待后端补路径
+  // return http.post('/patients/batch/assign-cs', payload)
+  return Promise.resolve(null)
+}
+
+/**
+ * 批量归档患者（待后端补路径）
+ * TODO: 路径待后端确认，预期 POST /patients/batch/archive 或 DELETE /patients/batch
+ * 当前为占位空函数：直接 resolve(null)，页面按成功流程走移除/提示/清空勾选；
+ * 路径确认后替换为 http.post('/patients/batch/archive', payload)
+ * @param {Object} payload 请求体
+ * @param {string[]} payload.patientIds 患者 ID 数组（雪花 ID 字符串，必填）
+ * @returns {Promise<null>} 占位实现恒返回 null
+ */
+export function batchArchivePatients(payload = {}) {
+  // 待后端补路径
+  // return http.post('/patients/batch/archive', payload)
+  return Promise.resolve(null)
+}
+
+/**
+ * 导出勾选患者 CSV（所选导出的批量路径/参数待后端补路径确认）
+ * TODO: 后端确认按 ID 导出的入参形态（预期 patientIds 数组或 ids 逗号串）后在此收敛；
+ * 当前复用已确认的 GET /patients/export，透传 patientIds，未被后端识别时等价于按当前筛选条件导出
+ * @param {string[]} patientIds 勾选患者 ID 数组（雪花 ID 字符串，必填）
+ * @param {Object} [params] 其余筛选参数，结构同 exportPatients
+ * @returns {Promise<Response>} text/csv 原始 Response，调用方自行 blob 下载
+ */
+export function exportSelectedPatients(patientIds = [], params = {}) {
+  // 待后端补路径（若后端提供独立批量导出端点，切换为该端点并上送 patientIds）
+  const query = { ...params, patientIds: (patientIds || []).map((id) => String(id)) }
+  stringifyIdFields(query, ['areaId', 'hospitalId', 'departmentId', 'doctorId'])
+  return http.get('/patients/export', query)
+}
+
+/* -------------------------------------------------------------------------- */
+/*  用户详情页（指令 7）：独立详情/保存/识别端点路径待后端确认，                  */
+/*  当前复用已确认的患者档案、病历样表、文件上传与病历 OCR 接口组合实现           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 获取用户详情聚合数据（基本信息 + 医疗 + 入院/出院 + 康复方案 + 监测目标 + 随访汇总）
+ * TODO 待后端补路径：预期独立端点 GET /patient/{id}
+ * 当前实现：并行拉取已确认的 GET /patients/{id} 与 GET /patients/{id}/medical-record 后合并；
+ * 病历样表不存在（404 等）时不影响基础档案展示
+ * @param {string} id 患者 ID（必填，雪花 ID 字符串）
+ * @returns {Promise<Object>} 合并后的详情对象（组件内再经 normalizeDetail 集中映射）
+ */
+export async function getPatientDetailById(id) {
+  const patientId = encodeURIComponent(String(id))
+  const [baseResult, recordResult] = await Promise.allSettled([
+    http.get(`/patients/${patientId}`),
+    http.get(`/patients/${patientId}/medical-record`)
+  ])
+  const base = baseResult.status === 'fulfilled' && baseResult.value ? baseResult.value : {}
+  const record = recordResult.status === 'fulfilled' && recordResult.value ? recordResult.value : {}
+  return { ...base, ...record }
+}
+
+/**
+ * 保存编辑后的用户详情
+ * TODO 待后端补路径：预期独立端点 PUT /patient/{id}
+ * 当前实现：基础档案字段走 PUT /patients/{id}，病历样表字段走 PUT /patients/{id}/medical-record
+ * @param {string} id 患者 ID（必填，雪花 ID 字符串）
+ * @param {Object} data
+ * @param {Object} [data.base] 基础档案字段（Patient 白名单字段）
+ * @param {Object} [data.record] 病历样表字段（PatientMedicalRecord 全量字段）
+ * @returns {Promise<void>} 两个更新全部完成后 resolve
+ */
+export async function updatePatientDetail(id, data = {}) {
+  const patientId = encodeURIComponent(String(id))
+  const tasks = []
+  if (data.base && Object.keys(data.base).length) {
+    tasks.push(http.put(`/patients/${patientId}`, data.base))
+  }
+  if (data.record && Object.keys(data.record).length) {
+    tasks.push(http.put(`/patients/${patientId}/medical-record`, data.record))
+  }
+  await Promise.all(tasks)
+}
+
+/**
+ * 附件上传并识别（回填基本信息字段）
+ * TODO 待后端补路径：预期一体化端点 POST /patient/{id}/attachments/recognize（multipart/form-data）
+ * 当前实现：先 POST /files/upload（dir=medical）拿 URL，再创建病历 OCR 任务并轮询结果，
+ * 成功返回 OcrScanResult（含 result.fields 归一化回填字段），失败抛出 failReason
+ * @param {string} id 患者 ID（必填，雪花 ID 字符串）
+ * @param {FormData} formData 表单，字段名 file 存放待识别文件
+ * @returns {Promise<Object>} OcrScanResult：{ taskId, status, result, failReason, note }
+ */
+export async function recognizePatientAttachment(id, formData) {
+  const patientId = String(id)
+  const file = formData && typeof formData.get === 'function' ? formData.get('file') : null
+  if (!file) throw new Error('未获取到上传文件')
+
+  const url = await uploadFile(file, 'medical')
+  const task = await http.post(
+    `/patients/${encodeURIComponent(patientId)}/medical-record/ocr`,
+    { imageUrls: [url] }
+  )
+  const taskId = task && task.taskId ? String(task.taskId) : ''
+  if (!taskId) throw new Error('识别任务创建失败')
+
+  // 异步识别轮询：每 1.5s 一次，最长 30s
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    const result = await http.get(
+      `/patients/${encodeURIComponent(patientId)}/medical-record/ocr/${encodeURIComponent(taskId)}`
+    )
+    if (result && result.status === 'SUCCESS') return result
+    if (result && result.status === 'FAILED') {
+      throw new Error(result.failReason || '识别失败，请更换清晰附件后重试')
+    }
+  }
+  throw new Error('识别超时，请稍后在病历档案中查看识别结果')
+}
+
 export default {
   getPatientPage,
   exportPatients,
+  batchAssignPatientsCs,
+  batchArchivePatients,
+  exportSelectedPatients,
+  getPatientDetailById,
+  updatePatientDetail,
+  recognizePatientAttachment,
   createPatient,
   getPatientById,
   updatePatientById,

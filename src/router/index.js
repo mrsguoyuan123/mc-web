@@ -9,6 +9,8 @@ import DepartmentView from '../views/department/index.vue'
 import HospitalAreaView from '../views/hospitalArea/index.vue'
 import UserView from '../views/user/index.vue'
 import HealthRecordView from '../views/user/healthRecord.vue'
+import UserManagementView from '../views/userManagement/index.vue'
+import UserManagementDetailView from '../views/userManagementDetail/index.vue'
 import DoctorManageView from '../views/doctorManage/index.vue'
 import DoctorAuditView from '../views/doctorAudit/index.vue'
 import StaffManageView from '../views/staffManage/index.vue'
@@ -16,11 +18,13 @@ import ScheduleManageView from '../views/scheduleManage/index.vue'
 import NurseServiceManageView from '../views/nurseServiceManage/index.vue'
 import AiKnowledgeView from '../views/aiKnowledge/index.vue'
 import AccountManageView from '../views/accountManage/index.vue'
+import RoleManageView from '../views/roleManagement/index.vue'
 import ServicePackageView from '../views/servicePackage/index.vue'
 import TemplateManageView from '../views/templateManage/index.vue'
 import AnnounceManageView from '../views/announceManage/index.vue'
 import BannerManageView from '../views/bannerManage/index.vue'
 import NoticeDocManageView from '../views/noticeDocManage/index.vue'
+import UserMessageNoticeView from '../views/userMessageNotice/index.vue'
 import EscortOrderManageView from '../views/escortOrderManage/index.vue'
 import CareOrderManageView from '../views/careOrderManage/index.vue'
 import PackageOrderManageView from '../views/packageOrderManage/index.vue'
@@ -32,7 +36,13 @@ import ServiceChatManageView from '../views/serviceChatManage/index.vue'
 import ServicePushManageView from '../views/servicePushManage/index.vue'
 import HospitalDashboardView from '../views/hospitalManage/dashboard.vue'
 import DataOverviewView from '../views/bigScreen/dataOverview.vue'
+import csManage from '../views/csManage/index.vue'
+import stationManage from '../views/stationManage/index.vue'
+
+
+
 import { useAuthStore, getHomePath } from '../stores/auth'
+import { tokenStore } from '../api/frontApikit.js'
 
 export const placeholderRoutes = []
 
@@ -58,21 +68,8 @@ const routes = [
         meta: {
           title: '数据概览',
           icon: 'DataLine',
-          group: '数据统计',
           groupIcon: 'DataAnalysis',
           roles: ['admin', 'doctor']
-        }
-      },
-      {
-        path: '/dataOverview',
-        name: 'dataOverview',
-        component: DataOverviewView,
-        meta: {
-          title: '数据概览',
-          icon: 'DataBoard',
-          group: '数据统计',
-          groupIcon: 'DataAnalysis',
-          roles: ['admin']
         }
       },
       {
@@ -92,7 +89,7 @@ const routes = [
         name: 'hospitalUsers',
         component: UserView,
         meta: {
-          title: '用户管理',
+          title: '人员管理',
           icon: 'User',
           group: '医院管理',
           groupIcon: 'OfficeBuilding',
@@ -111,78 +108,78 @@ const routes = [
           roles: ['hospital']
         }
       },
-      {
-        path: '/orderManageOverview',
-        name: 'orderManageOverview',
-        component: OrderManageOverviewView,
-        meta: {
-          title: '订单总览',
-          icon: 'ShoppingCart',
-          group: '订单管理',
-          groupIcon: 'ShoppingCart',
-          roles: ['admin', 'doctor']
-        }
-      },
-      {
-        path: '/packageOrderManage',
-        name: 'packageOrders',
-        component: PackageOrderManageView,
-        meta: {
-          title: '服务包订单管理',
-          icon: 'Tickets',
-          group: '订单管理',
-          groupIcon: 'ShoppingCart',
-          roles: ['admin', 'doctor']
-        }
-      },
-      {
-        path: '/escortOrderManage',
-        name: 'escortOrderManage',
-        component: EscortOrderManageView,
-        meta: {
-          title: '陪诊服务订单管理',
-          icon: 'Document',
-          group: '订单管理',
-          groupIcon: 'ShoppingCart',
-          roles: ['admin']
-        }
-      },
-      {
-        path: '/careOrderManage',
-        name: 'careOrderManage',
-        component: CareOrderManageView,
-        meta: {
-          title: '健康照护师订单管理',
-          icon: 'Document',
-          group: '订单管理',
-          groupIcon: 'ShoppingCart',
-          roles: ['admin']
-        }
-      },
-      {
-        path: '/dictionaries',
-        name: 'dictionaries',
-        component: DictView,
-        meta: {
-          title: '字典维护',
-          icon: 'Collection',
-          group: '系统管理',
-          groupIcon: 'Setting',
-          roles: ['admin']
-        }
-      },
-      {
-        path: '/hospitalArea',
-        name: 'hospitalArea',
-        component: HospitalAreaView,
-        meta: {
-          title: '院区管理',
-          icon: 'School',
-          group: '系统管理',
-          groupIcon: 'Setting',
-          roles: ['admin']
-        }
-      },
+      // {
+      //   path: '/orderManageOverview',
+      //   name: 'orderManageOverview',
+      //   component: OrderManageOverviewView,
+      //   meta: {
+      //     title: '订单总览',
+      //     icon: 'ShoppingCart',
+      //     group: '订单管理',
+      //     groupIcon: 'ShoppingCart',
+      //     roles: ['admin', 'doctor']
+      //   }
+      // },
+      // {
+      //   path: '/packageOrderManage',
+      //   name: 'packageOrders',
+      //   component: PackageOrderManageView,
+      //   meta: {
+      //     title: '服务包订单管理',
+      //     icon: 'Tickets',
+      //     group: '订单管理',
+      //     groupIcon: 'ShoppingCart',
+      //     roles: ['admin', 'doctor']
+      //   }
+      // },
+      // {
+      //   path: '/escortOrderManage',
+      //   name: 'escortOrderManage',
+      //   component: EscortOrderManageView,
+      //   meta: {
+      //     title: '陪诊服务订单管理',
+      //     icon: 'Document',
+      //     group: '订单管理',
+      //     groupIcon: 'ShoppingCart',
+      //     roles: ['admin']
+      //   }
+      // },
+      // {
+      //   path: '/careOrderManage',
+      //   name: 'careOrderManage',
+      //   component: CareOrderManageView,
+      //   meta: {
+      //     title: '健康照护师订单管理',
+      //     icon: 'Document',
+      //     group: '订单管理',
+      //     groupIcon: 'ShoppingCart',
+      //     roles: ['admin']
+      //   }
+      // },
+      // {
+      //   path: '/dictionaries',
+      //   name: 'dictionaries',
+      //   component: DictView,
+      //   meta: {
+      //     title: '字典维护',
+      //     icon: 'Collection',
+      //     group: '机构管理',
+      //     groupIcon: 'Setting',
+      //     roles: ['admin']
+      //   }
+      // },
+      // {
+      //   path: '/hospitalArea',
+      //   name: 'hospitalArea',
+      //   component: HospitalAreaView,
+      //   meta: {
+      //     title: '院区管理',
+      //     icon: 'School',
+      //     group: '机构管理',
+      //     groupIcon: 'Setting',
+      //     roles: ['admin']
+      //   }
+      // },
       {
         path: '/hospital',
         name: 'hospital',
@@ -190,8 +187,8 @@ const routes = [
         meta: {
           title: '医院管理',
           icon: 'OfficeBuilding',
-          group: '系统管理',
-          groupIcon: 'Setting',
+          group: '机构管理',
+          groupIcon: 'Coin',
           roles: ['admin']
         }
       },
@@ -202,8 +199,8 @@ const routes = [
         meta: {
           title: '科室管理',
           icon: 'Grid',
-          group: '系统管理',
-          groupIcon: 'Setting',
+          group: '机构管理',
+          groupIcon: 'Coin',
           roles: ['admin']
         }
       },
@@ -212,36 +209,34 @@ const routes = [
         name: 'aiKnowledge',
         component: AiKnowledgeView,
         meta: {
-          title: 'AI智能诊断回复知识库',
-          icon: 'MagicStick',
-          
-          groupIcon: 'Setting',
+          title: '智能客服知识库',
+          icon: 'Connection',
           roles: ['admin']
         }
       },
       
-      {
-        path: '/miniProgramManage',
-        name: 'miniProgramManage',
-        component: MiniProgramManageView,
-        meta: {
-          title: '小程序管理',
-          icon: 'Menu',
-          group: '小程序管理',
-          groupIcon: 'Menu',
-          roles: ['admin']
-        }
-      },
-      {
-        path: '/healthConsultManage',
-        name: 'healthConsultManage',
-        component: HealthConsultManageView,
-        meta: {
-          title: '健康咨询',
-          icon: 'ChatDotRound',
-          roles: ['admin', 'doctor']
-        }
-      },
+      // {
+      //   path: '/miniProgramManage',
+      //   name: 'miniProgramManage',
+      //   component: MiniProgramManageView,
+      //   meta: {
+      //     title: '小程序管理',
+      //     icon: 'Menu',
+      //     group: '小程序管理',
+      //     groupIcon: 'Menu',
+      //     roles: ['admin']
+      //   }
+      // },
+      // {
+      //   path: '/healthConsultManage',
+      //   name: 'healthConsultManage',
+      //   component: HealthConsultManageView,
+      //   meta: {
+      //     title: '健康咨询',
+      //     icon: 'ChatDotRound',
+      //     roles: ['admin', 'doctor']
+      //   }
+      // },
       {
         path: '/serviceChatManage',
         name: 'serviceChatManage',
@@ -268,15 +263,36 @@ const routes = [
           roles: ['service']
         }
       },
+      // {
+      //   path: '/servicePackage',
+      //   name: 'servicePackage',
+      //   component: ServicePackageView,
+      //   meta: {
+      //     title: '服务包管理',
+      //     icon: 'Goods',
+      //     group: '小程序管理',
+      //     groupIcon: 'Menu',
+      //     roles: ['admin']
+      //   }
+      // },
       {
-        path: '/servicePackage',
-        name: 'servicePackage',
-        component: ServicePackageView,
+        path: '/userManagement',
+        name: 'userManagement',
+        component: UserManagementView,
         meta: {
-          title: '服务包管理',
-          icon: 'Goods',
-          group: '小程序管理',
-          groupIcon: 'Menu',
+          title: '用户管理仓',
+          icon: 'User',
+          roles: ['admin']
+        }
+      },
+      {
+        // 用户详情页：URL 通过 query.id 携带患者 id，如 /userManagementDetail?id=123
+        path: '/userManagementDetail',
+        name: 'userManagementDetail',
+        component: UserManagementDetailView,
+        meta: {
+          title: '用户详情',
+          hidden: true,
           roles: ['admin']
         }
       },
@@ -288,7 +304,7 @@ const routes = [
           title: '模板管理',
           icon: 'Files',
           group: '小程序管理',
-          groupIcon: 'Menu',
+          groupIcon: 'Document',
           roles: ['admin']
         }
       },
@@ -300,7 +316,7 @@ const routes = [
           title: '资讯管理',
           icon: 'BellFilled',
           group: '小程序管理',
-          groupIcon: 'Menu',
+          groupIcon: 'Document',
           roles: ['admin']
         }
       },
@@ -309,10 +325,10 @@ const routes = [
         name: 'bannerManage',
         component: BannerManageView,
         meta: {
-          title: '宣称设置',
+          title: '宣教内容',
           icon: 'Picture',
           group: '小程序管理',
-          groupIcon: 'Menu',
+          groupIcon: 'Document',
           roles: ['admin']
         }
       },
@@ -321,32 +337,44 @@ const routes = [
         name: 'noticeDocManage',
         component: NoticeDocManageView,
         meta: {
-          title: '告知书管理',
+          title: '小程序告知书',
           icon: 'Tickets',
           group: '小程序管理',
-          groupIcon: 'Menu',
+          groupIcon: 'Document',
           roles: ['admin']
         }
       },
       {
-        path: '/user',
-        name: 'user',
-        component: UserView,
+        path: '/userMessageNotice',
+        name: 'userMessageNotice',
+        component: UserMessageNoticeView,
         meta: {
-          title: '患者管理',
-          icon: 'User',
-          group: '用户管理',
-          groupIcon: 'User',
+          title: '用户消息通知',
+          icon: 'Bell',
+          group: '小程序管理',
+          groupIcon: 'Document',
           roles: ['admin']
         }
       },
+      // {
+      //   path: '/user',
+      //   name: 'user',
+      //   component: UserView,
+      //   meta: {
+      //     title: '患者管理',
+      //     icon: 'User',
+      //     group: '人员管理',
+      //     groupIcon: 'User',
+      //     roles: ['admin']
+      //   }
+      // },
       {
         path: '/user/healthRecord',
         name: 'userHealthRecord',
         component: HealthRecordView,
         meta: {
           title: '患者健康档案',
-          group: '用户管理',
+          group: '人员管理',
           hidden: true,
           roles: ['admin']
         }
@@ -358,8 +386,8 @@ const routes = [
         meta: {
           title: '医生管理',
           icon: 'FirstAidKit',
-          group: '用户管理',
-          groupIcon: 'User',
+          group: '医生管理仓',
+          groupIcon: 'Stethoscope',
           roles: ['admin']
         }
       },
@@ -370,8 +398,8 @@ const routes = [
         meta: {
           title: '医生注册审核',
           icon: 'CircleCheck',
-          group: '用户管理',
-          groupIcon: 'User',
+          group: '医生管理仓',
+          groupIcon: 'Stethoscope',
           roles: ['admin']
         }
       },
@@ -382,35 +410,47 @@ const routes = [
         meta: {
           title: '员工管理',
           icon: 'Avatar',
-          group: '用户管理',
-          groupIcon: 'User',
+          group: '人员管理',
+          groupIcon: 'UserFilled',
           roles: ['admin']
         }
       },
       {
-        path: '/scheduleManage',
-        name: 'scheduleManage',
-        component: ScheduleManageView,
+        path: '/roleManagement',
+        name: 'roleManagement',
+        component: RoleManageView,
         meta: {
-          title: '客服排班管理',
-          icon: 'Calendar',
-          group: '用户管理',
-          groupIcon: 'User',
+          title: '角色管理',
+          icon: 'UserFilled',
+          group: '人员管理',
+          groupIcon: 'UserFilled',
           roles: ['admin']
         }
       },
-      {
-        path: '/nurseServiceManage',
-        name: 'nurseServiceManage',
-        component: NurseServiceManageView,
-        meta: {
-          title: '健康照护师服务管理',
-          icon: 'Service',
-          group: '用户管理',
-          groupIcon: 'User',
-          roles: ['admin']
-        }
-      },
+      // {
+      //   path: '/scheduleManage',
+      //   name: 'scheduleManage',
+      //   component: ScheduleManageView,
+      //   meta: {
+      //     title: '客服排班管理',
+      //     icon: 'Calendar',
+      //     group: '人员管理',
+      //     groupIcon: 'User',
+      //     roles: ['admin']
+      //   }
+      // },
+      // {
+      //   path: '/nurseServiceManage',
+      //   name: 'nurseServiceManage',
+      //   component: NurseServiceManageView,
+      //   meta: {
+      //     title: '健康照护师服务管理',
+      //     icon: 'Service',
+      //     group: '人员管理',
+      //     groupIcon: 'User',
+      //     roles: ['admin']
+      //   }
+      // },
       {
         path: '/escortServiceManage',
         name: 'escortServiceManage',
@@ -418,8 +458,33 @@ const routes = [
         meta: {
           title: '陪诊服务管理',
           icon: 'Guide',
-          group: '用户管理',
+          group: '人员管理',
           groupIcon: 'User',
+          hidden: true,
+          roles: ['admin']
+        }
+      },
+      {
+        path: '/csManage',
+        name: 'csManage',
+        component: csManage,
+        meta: {
+          title: '客服管理',
+          icon: 'Service',
+          group: '服务运营',
+          groupIcon: 'Briefcase',
+          roles: ['admin']
+        }
+      },
+      {
+        path: '/stationManage',
+        name: 'stationManage',
+        component: stationManage,
+        meta: {
+          title: '驻点管理',
+          icon: 'Coin',
+          group: '服务运营',
+          groupIcon: 'Briefcase',
           roles: ['admin']
         }
       },
@@ -430,11 +495,11 @@ const routes = [
         meta: {
           title: '账户系统管理',
           icon: 'Setting',
-         
           groupIcon: 'Setting',
           roles: ['admin']
         }
       },
+     
       ...placeholderRoutes.map((item) => ({
         path: item.path,
         name: item.path.slice(1),
@@ -464,22 +529,33 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
+  // 公开页（登录页）：已登录回首页，否则放行
   if (to.meta.public) {
     return auth.isLoggedIn ? { path: getHomePath(auth.role) } : true
   }
 
-  if (!auth.isLoggedIn) {
-    return {
-      path: '/login',
-      query: {
-        redirect: to.fullPath
-      }
+  // 无本地 access token：直接跳登录并带回跳地址
+  if (!tokenStore.getToken()) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+
+  // 刷新页面后首次进入：GET /auth/me 恢复会话与权限；失败（含 402）清凭证跳登录
+  if (!auth.sessionRestored) {
+    const ok = await auth.restore()
+    if (!ok) {
+      return { path: '/login', query: { redirect: to.fullPath } }
     }
   }
 
+  // 权限码控制（新规范，菜单/按钮/路由统一 can()，禁止硬编码 role）
+  if (to.meta.permission && !auth.can(to.meta.permission)) {
+    return { path: '/403' }
+  }
+
+  // 兼容历史 meta.roles
   if (to.meta.roles && !auth.hasRole(to.meta.roles)) {
     return auth.role === 'service' || auth.role === 'hospital'
       ? { path: getHomePath(auth.role) }
