@@ -635,7 +635,7 @@ watch(expandedId, () => {
           </h2>
           <p class="overview-subtitle">数据范围与用户列表一致，异常提醒可折叠查看，折叠后仍会在用户名旁显示风险标签。</p>
         </div>
-        <el-tag type="primary" effect="light" round size="large">数据范围：全部数据</el-tag>
+        <el-tag type="primary" effect="light" round size="">数据范围：全部数据</el-tag>
       </div>
       <div class="stat-grid">
         <div v-for="item in healthStats" :key="item.key" class="stat-card">

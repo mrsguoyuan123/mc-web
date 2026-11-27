@@ -39,6 +39,8 @@ import DepartmentDashboardView from '../views/dashboardManagement/DepartmentDash
 import DataOverviewView from '../views/bigScreen/dataOverview.vue'
 import csManage from '../views/csManage/index.vue'
 import stationManage from '../views/stationManage/index.vue'
+import StationWorkbenchView from '../views/stationWorkbench/index.vue'
+import doctorAdd from '../views/doctorAdd/doctorCreate.vue'
 
 
 
@@ -254,8 +256,7 @@ const routes = [
         meta: {
           title: '客服工作台',
           icon: 'ChatDotRound',
-          group: '客服',
-          groupIcon: 'Service',
+         
           roles: ['service'],
           servicePage: true,
           description: '接待用户咨询，查看智能客服和人工客服的沟通记录'
@@ -268,8 +269,7 @@ const routes = [
         meta: {
           title: '专业咨询/医生留言',
           icon: 'Bell',
-          group: '客服',
-          groupIcon: 'Service',
+      
           roles: ['service']
         }
       },
@@ -292,8 +292,8 @@ const routes = [
         meta: {
           title: '用户管理仓',
           icon: 'User',
-          // 公司管理员 / 医院管理 / 科室管理共用同一用户列表页
-          roles: ['admin', 'hospital', 'department']
+        
+          roles: ['admin', 'hospital', 'department','station','service']
         }
       },
       {
@@ -500,12 +500,11 @@ const routes = [
         }
       },
       {
-        // 驻点角色页面：业务功能待开发，先使用 PlaceholderView 占位
         path: '/station/workbench',
         name: 'stationWorkbench',
-        component: PlaceholderView,
+        component: StationWorkbenchView,
         meta: {
-          title: '客服工作台',
+          title: '驻点工作台',
           icon: 'ChatDotRound',
           roles: ['station']
         }
@@ -514,7 +513,7 @@ const routes = [
         // 驻点角色页面：业务功能待开发，先使用 PlaceholderView 占位
         path: '/station/doctorAdd',
         name: 'stationDoctorAdd',
-        component: PlaceholderView,
+        component: doctorAdd,
         meta: {
           title: '医生角色添加',
           icon: 'UserFilled',

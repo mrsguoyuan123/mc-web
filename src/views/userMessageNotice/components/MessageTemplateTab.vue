@@ -19,17 +19,31 @@ const loading = ref(false)
 const templates = ref([])
 const keyword = ref('')
 const filterStatus = ref('')
+const appliedKeyword = ref('')
+const appliedStatus = ref('')
 
 const filtered = computed(() => {
-  const word = keyword.value.trim()
+  const word = appliedKeyword.value.trim()
   return templates.value.filter((item) => {
     const matchWord =
       !word ||
       [item.name, item.content, item.surgeryType, item.note].filter(Boolean).some((v) => String(v).includes(word))
-    const matchStatus = filterStatus.value === '' || Number(item.status) === Number(filterStatus.value)
+    const matchStatus = appliedStatus.value === '' || Number(item.status) === Number(appliedStatus.value)
     return matchWord && matchStatus
   })
 })
+
+const handleSearch = () => {
+  appliedKeyword.value = keyword.value.trim()
+  appliedStatus.value = filterStatus.value
+}
+
+const handleReset = () => {
+  keyword.value = ''
+  filterStatus.value = ''
+  appliedKeyword.value = ''
+  appliedStatus.value = ''
+}
 
 const fetchList = async () => {
   loading.value = true

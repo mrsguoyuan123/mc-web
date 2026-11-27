@@ -117,7 +117,7 @@ const { page: caPage, pageSize: caSize, pagedData: pagedCampuses, total: caTotal
         <h1>院区管理</h1>
         <p>管理医院院区信息</p>
       </div>
-      <el-button type="primary" size="large" @click="openAdd">
+      <el-button type="primary" size="" @click="openAdd">
         <el-icon><Plus /></el-icon>
         添加院区
       </el-button>
@@ -143,13 +143,13 @@ const { page: caPage, pageSize: caSize, pagedData: pagedCampuses, total: caTotal
     <div class="panel filter-card">
       
       <div class="filter-row">
-        <el-input v-model="keyword" class="search-input" size="large" clearable
+        <el-input v-model="keyword" class="search-input" size="" clearable
           placeholder="搜索院区名称、医院或地址...">
           <template #prefix>
             <el-icon><Search /></el-icon>
           </template>
         </el-input>
-        <el-select v-model="filterHospital" class="filter-select" size="large" clearable placeholder="全部医院">
+        <el-select v-model="filterHospital" class="filter-select" size="" clearable placeholder="全部医院">
           <el-option v-for="hospital in hospitalOptions" :key="hospital" :label="hospital" :value="hospital" />
         </el-select>
       </div>
@@ -212,7 +212,7 @@ const { page: caPage, pageSize: caSize, pagedData: pagedCampuses, total: caTotal
 
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="campus-form">
         <el-form-item label="院区名称" prop="name">
-          <el-input v-model="form.name" size="large" placeholder="如：东院区" />
+          <el-input v-model="form.name" size="" placeholder="如：东院区" />
         </el-form-item>
         <el-form-item label="所属医院" prop="hospital">
           <el-select v-model="form.hospital" class="full-control" placeholder="请选择医院">
@@ -220,14 +220,14 @@ const { page: caPage, pageSize: caSize, pagedData: pagedCampuses, total: caTotal
           </el-select>
         </el-form-item>
         <el-form-item label="详细地址" prop="address" class="full">
-          <el-input v-model="form.address" size="large" placeholder="请输入详细地址" />
+          <el-input v-model="form.address" size="" placeholder="请输入详细地址" />
         </el-form-item>
         <el-form-item label="联系电话" prop="phone">
-          <el-input v-model="form.phone" size="large" placeholder="请输入联系电话" />
+          <el-input v-model="form.phone" size="" placeholder="请输入联系电话" />
         </el-form-item>
         <el-form-item label="床位数量" prop="bedCount">
           <el-input-number v-model="form.bedCount" :min="0" :controls="false" class="full-control"
-            size="large" />
+            size="" />
         </el-form-item>
         <el-form-item label="简介" prop="intro" class="full">
           <el-input v-model="form.intro" type="textarea" :rows="3" placeholder="请输入院区简介" />
@@ -240,8 +240,8 @@ const { page: caPage, pageSize: caSize, pagedData: pagedCampuses, total: caTotal
       </el-form>
 
       <template #footer>
-        <el-button size="large" @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" size="large" @click="handleSubmit">
+        <el-button size="" @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" size="" @click="handleSubmit">
           {{ isEdit ? '保存修改' : '确认添加' }}
         </el-button>
       </template>

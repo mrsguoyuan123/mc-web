@@ -55,6 +55,26 @@ export function testKbSearch(data) {
   return http.post('/kb/search-test', data)
 }
 
+/**
+ * 近 N 天命中趋势（G1 占位：后端暂无端点，上线后路径以后端为准）
+ * 期望返回 [{ date, hit, miss }]；接口缺失时调用方按空态 + 「接口未提供」处理
+ * @param {Object} [params]
+ * @param {number} [params.days=7] 统计天数
+ * @returns {Promise<Array<Object>>}
+ */
+export function getKbHitTrend(params = {}) {
+  return http.get('/kb/hit-trend', params)
+}
+
+/**
+ * 待训练知识统计（G8 占位：后端暂无 GET /kb/train/preview）
+ * 期望返回 { pendingQaCount, pendingDocCount }；接口缺失时调用方禁用「开始训练」
+ * @returns {Promise<Object>}
+ */
+export function getKbTrainPreview() {
+  return http.get('/kb/train/preview')
+}
+
 /* -------------------------------------------------------------------------- */
 /*  知识问答条目（人工客服维护）                                                 */
 /* -------------------------------------------------------------------------- */
@@ -163,6 +183,19 @@ export function deleteKbEntryBatch(data) {
  */
 export function importKbEntries(entries) {
   return http.post('/kb/entries/import', Array.isArray(entries) ? entries : [])
+}
+
+/**
+ * 文件批量导入问答（G4 占位：后端暂无文件导入端点，设计为 multipart 上传）
+ * 兜底方案由前端按模板解析 CSV 后调用 importKbEntries；接口补齐前调用会失败，UI 需捕获提示
+ * 路径：POST /kb/entries/import-file（占位，以后端最终路径为准）
+ * @param {File|Blob} file 导入文件（表单字段名 file）
+ * @returns {Promise<string>} 实际导入条数
+ */
+export function importKbEntriesFile(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return http.post('/kb/entries/import-file', formData)
 }
 
 /* -------------------------------------------------------------------------- */
@@ -286,6 +319,18 @@ export function ignoreKbUnresolvedById(id) {
   return http.post(`/kb/unresolved/${encodeURIComponent(String(id))}/ignore`)
 }
 
+/**
+ * 手动新增未解决问题（G7 占位：后端暂无 POST /kb/unresolved）
+ * 检索测试未命中后理论上要落到未解决池；接口补齐前调用会失败，UI 不放置会失败的按钮
+ * @param {Object} data
+ * @param {string} data.question 原始问法（必填）
+ * @param {string} [data.sourceDepartment] 来源科室
+ * @returns {Promise<string>} 新建未解决问题 id（雪花 ID 字符串）
+ */
+export function createKbUnresolved(data) {
+  return http.post('/kb/unresolved', data)
+}
+
 /* -------------------------------------------------------------------------- */
 /*  版本、训练与回滚（部分为占位）                                               */
 /* -------------------------------------------------------------------------- */
@@ -348,6 +393,8 @@ export function rollbackKbVersion(data) {
 export default {
   getKbOverview,
   testKbSearch,
+  getKbHitTrend,
+  getKbTrainPreview,
   getKbEntryPage,
   createKbEntry,
   updateKbEntryById,
@@ -356,12 +403,14 @@ export default {
   updateKbEntryBatchStatus,
   deleteKbEntryBatch,
   importKbEntries,
+  importKbEntriesFile,
   getKbDocumentPage,
   uploadKbDocument,
   deleteKbDocumentById,
   getKbDocumentChunksById,
   reparseKbDocumentById,
   getKbUnresolvedPage,
+  createKbUnresolved,
   convertKbUnresolvedById,
   mergeKbUnresolvedById,
   ignoreKbUnresolvedById,

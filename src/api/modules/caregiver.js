@@ -54,11 +54,13 @@ export function getCaregiverConversationPage(params = {}) {
 /**
  * 查询驻点会话统计（JWT 接口）
  * 路径：GET /caregiver/conversations/stats
- * 无请求参数
+ * M-G3：swagger 当前未声明筛选入参（服务端可能按全驻点口径返回）；调用方仍按与分页一致的筛选参数透传，
+ * 后端若忽略则由页面在卡片副行标注「当前筛选条件」，前端不本地统计
  * @returns {Promise<Object>} { total 会话总数, departmentCount 覆盖科室数, doctorCount 关联医生数 }
  */
-export function getCaregiverConversationStats() {
-  return http.get('/caregiver/conversations/stats')
+export function getCaregiverConversationStats(params = {}) {
+  const query = stringifyIdFields({ ...params }, ['hospitalId', 'departmentId'])
+  return http.get('/caregiver/conversations/stats', query)
 }
 
 /**

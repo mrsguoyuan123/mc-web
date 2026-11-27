@@ -367,6 +367,31 @@ export function getMyPatientConversationById(id) {
   return http.get(`/doctor/patients/${encodeURIComponent(String(id))}/conversation`)
 }
 
+/* -------------------------------------------------------------------------- */
+/*  驻点协助注册：字典占位（pending，后端接口未提供，禁止编造 URL）                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 职称字典下拉（pending：后端职称字典接口尚未提供，不得编造 URL）
+ * 待后端字典接口替换；接通前调用方（doctorCreate）使用本地职称常量，不调用本函数
+ * @returns {Promise<Array>} 占位固定返回空数组，避免在无 URL 的情况下发起请求
+ */
+export function getDictTitleList() {
+  // pending: 后端职称字典接口待补，禁止编造 URL
+  return Promise.resolve([])
+}
+
+/**
+ * 医院字典下拉（pending：后端医院字典列表接口尚未提供，不得编造 URL）
+ * 待后端接口替换；接通前驻点注册页医院下拉保持 disabled + tooltip「医院字典接口待补」
+ * @param {Object} [params] 预留过滤参数（如 areaId），后端接口定稿后透传
+ * @returns {Promise<Array>} 占位固定返回空数组，避免在无 URL 的情况下发起请求
+ */
+export function getDictHospitalList(params = {}) {
+  // pending: 后端医院字典接口待补，禁止编造 URL
+  return Promise.resolve([])
+}
+
 export default {
   getDoctorPage,
   createDoctor,
@@ -388,5 +413,7 @@ export default {
   getMyPatientArchiveById,
   createMyPatientAttachmentById,
   deleteMyPatientAttachmentById,
-  getMyPatientConversationById
+  getMyPatientConversationById,
+  getDictTitleList,
+  getDictHospitalList
 }
