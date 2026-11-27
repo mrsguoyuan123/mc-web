@@ -34,9 +34,9 @@ const pageSize = ref(10)
 const overview = ref({ hospitalCount: 0, departmentCount: 0, doctorCount: 0, provinceCount: 0 })
 const stats = computed(() => [
   { label: '医院总数', value: overview.value.hospitalCount, unit: '家', desc: '医疗机构', icon: 'OfficeBuilding', theme: 'blue' },
-  { label: '科室数量', value: overview.value.departmentCount, unit: '个', desc: '已建科室字典', icon: 'Medal', theme: 'red' },
-  { label: '医生数量', value: overview.value.doctorCount, unit: '位', desc: '在册医生字典', icon: 'FirstAidKit', theme: 'cyan' },
-  { label: '覆盖省份', value: overview.value.provinceCount, unit: '个', desc: '全国覆盖省份', icon: 'Location', theme: 'green' }
+  { label: '三甲医院', value: overview.value.departmentCount, unit: '家', desc: '三甲医院', icon: 'Medal', theme: 'red' },
+  { label: '专科医院', value: overview.value.doctorCount, unit: '家', desc: '专科医院', icon: 'FirstAidKit', theme: 'cyan' },
+  { label: '覆盖省份', value: overview.value.provinceCount, unit: '个', desc: '省份', icon: 'Location', theme: 'green' }
 ])
 
 const buildQuery = () => {
@@ -90,8 +90,8 @@ const formRef = ref()
 const createForm = () => ({
   id: '',
   name: '',
-  level: '三甲',
-  type: '综合',
+  level: '',
+  type: '',
   province: '',
   city: '',
   address: '',
@@ -186,7 +186,7 @@ const handleDelete = (row) => {
     } catch (err) {
       ElMessage.error(err?.message || '删除失败')
     }
-  }).catch(() => {})
+  }).catch(() => { })
 }
 
 onMounted(() => {
@@ -201,8 +201,10 @@ onMounted(() => {
         <h1>医院管理</h1>
         <p>管理医疗机构信息</p>
       </div>
-      <el-button type="primary" size="large" @click="openAdd">
-        <el-icon><Plus /></el-icon>
+      <el-button type="primary" size="" @click="openAdd" class="add-btn">
+        <el-icon>
+          <Plus />
+        </el-icon>
         添加医院
       </el-button>
     </div>
@@ -210,46 +212,51 @@ onMounted(() => {
     <!-- 统计卡片 -->
     <div class="stats-grid">
       <div v-for="item in stats" :key="item.label" class="panel stat-card">
+        <div class="stat-bottom">
+          <span class="stat-icon" :class="item.theme">
+            <el-icon>
+              <component :is="item.icon" />
+            </el-icon>
+          </span>
+
+        </div>
         <div class="stat-top">
           <span class="stat-label">{{ item.label }}</span>
           <span class="stat-value">{{ item.value }}<small>{{ item.unit }}</small></span>
         </div>
-        <div class="stat-bottom">
-          <span class="stat-icon" :class="item.theme">
-            <el-icon><component :is="item.icon" /></el-icon>
-          </span>
-          <span class="stat-desc">{{ item.desc }}</span>
+
+      </div>
+    </div>
+    <!-- 筛选条件 -->
+    <div class="panel filter-card">
+     
+      <div class="filter-row">
+        <div>
+          <el-input v-model="keyword" class="search-input" size="" clearable placeholder="搜索医院名称、地址或电话..."
+            @keyup.enter="handleSearch" @clear="handleSearch">
+            <template #prefix>
+              <el-icon>
+                <Search />
+              </el-icon>
+            </template>
+          </el-input>
+          <el-select v-model="filterLevel" class="filter-select" size="" clearable placeholder="全部等级"
+            @change="handleSearch">
+            <el-option v-for="level in levels" :key="level" :label="level" :value="level" />
+          </el-select>
+          <el-select v-model="filterType" class="filter-select" size="" clearable placeholder="全部类型"
+            @change="handleSearch">
+            <el-option v-for="type in types" :key="type" :label="type" :value="type" />
+          </el-select>
+
+        </div>
+        <div>
+          <el-button type="primary" size="" @click="handleSearch">查询</el-button>
+          <el-button size="" @click="handleReset">重置</el-button>
         </div>
       </div>
     </div>
 
-    <!-- 筛选条件 -->
-    <div class="panel filter-card">
-      <div class="card-label">筛选条件</div>
-      <div class="filter-row">
-        <el-input
-          v-model="keyword"
-          class="search-input"
-          size="large"
-          clearable
-          placeholder="搜索医院名称、地址或电话..."
-          @keyup.enter="handleSearch"
-          @clear="handleSearch"
-        >
-          <template #prefix>
-            <el-icon><Search /></el-icon>
-          </template>
-        </el-input>
-        <el-select v-model="filterLevel" class="filter-select" size="large" clearable placeholder="全部等级" @change="handleSearch">
-          <el-option v-for="level in levels" :key="level" :label="level" :value="level" />
-        </el-select>
-        <el-select v-model="filterType" class="filter-select" size="large" clearable placeholder="全部类型" @change="handleSearch">
-          <el-option v-for="type in types" :key="type" :label="type" :value="type" />
-        </el-select>
-        <el-button type="primary" size="large" @click="handleSearch">查询</el-button>
-        <el-button size="large" @click="handleReset">重置</el-button>
-      </div>
-    </div>
 
     <!-- 医院列表 -->
     <div class="panel table-card">
@@ -275,10 +282,14 @@ onMounted(() => {
         <el-table-column label="操作" width="110" fixed="right" align="center">
           <template #default="{ row }">
             <el-tooltip content="编辑" placement="top">
-              <el-button type="primary" link @click="openEdit(row)"><el-icon><Edit /></el-icon></el-button>
+              <el-button type="primary" link @click="openEdit(row)"><el-icon>
+                  <Edit />
+                </el-icon></el-button>
             </el-tooltip>
             <el-tooltip content="删除" placement="top">
-              <el-button type="danger" link @click="handleDelete(row)"><el-icon><Delete /></el-icon></el-button>
+              <el-button type="danger" link @click="handleDelete(row)"><el-icon>
+                  <Delete />
+                </el-icon></el-button>
             </el-tooltip>
           </template>
         </el-table-column>
@@ -286,17 +297,9 @@ onMounted(() => {
           <el-empty description="暂无符合条件的医院" :image-size="90" />
         </template>
       </el-table>
-      <el-pagination
-        class="list-pager"
-        background
-        :current-page="page"
-        :page-size="pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, prev, pager, next, sizes"
-        @current-change="handlePageChange"
-        @size-change="handleSizeChange"
-      />
+      <el-pagination class="list-pager" background :current-page="page" :page-size="pageSize"
+        :page-sizes="[10, 20, 50, 100]" :total="total" layout="total, prev, pager, next, sizes"
+        @current-change="handlePageChange" @size-change="handleSizeChange" />
     </div>
     <!-- 添加/编辑弹窗 -->
     <el-dialog v-model="dialogVisible" width="640px" class="hospital-dialog" @closed="resetForm">
@@ -309,7 +312,7 @@ onMounted(() => {
 
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="hospital-form">
         <el-form-item label="医院名称" prop="name" class="full">
-          <el-input v-model="form.name" size="large" placeholder="请输入医院名称" />
+          <el-input v-model="form.name" size="" placeholder="请输入医院名称" />
         </el-form-item>
         <el-form-item label="医院等级" prop="level">
           <el-select v-model="form.level" class="full-control" placeholder="请选择等级">
@@ -322,38 +325,32 @@ onMounted(() => {
           </el-select>
         </el-form-item>
         <el-form-item label="省份" prop="province">
-          <el-input v-model="form.province" size="large" placeholder="如：北京市" />
+          <el-input v-model="form.province" size="" placeholder="如：北京市" />
         </el-form-item>
         <el-form-item label="城市" prop="city">
-          <el-input v-model="form.city" size="large" placeholder="如：东城区" />
+          <el-input v-model="form.city" size="" placeholder="如：东城区" />
         </el-form-item>
         <el-form-item label="详细地址" prop="address" class="full">
-          <el-input v-model="form.address" size="large" placeholder="请输入详细地址" />
+          <el-input v-model="form.address" size="" placeholder="请输入详细地址" />
         </el-form-item>
         <el-form-item label="联系电话" prop="phone">
-          <el-input v-model="form.phone" size="large" placeholder="请输入联系电话" />
+          <el-input v-model="form.phone" size="" placeholder="请输入联系电话" />
         </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-select v-model="form.status" class="full-control">
-            <el-option
-              v-for="status in statuses"
-              :key="status"
-              :label="STATUS_TEXT[status]"
-              :value="status"
-            />
+            <el-option v-for="status in statuses" :key="status" :label="STATUS_TEXT[status]" :value="status" />
           </el-select>
         </el-form-item>
         <el-form-item label="简介" prop="description" class="full">
-          <el-input v-model="form.description" type="textarea" :rows="3"
-            placeholder="请输入医院简介" />
+          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入医院简介" />
         </el-form-item>
       </el-form>
 
       <template #footer>
-        <el-button size="large" @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" size="large" :loading="submitting" @click="handleSubmit">
+        <el-button size="" @click="dialogVisible = false" class="mr-10">取消</el-button>
+        <el-button type="primary" size="" :loading="submitting" @click="handleSubmit">
           {{ isEdit ? '保存修改' : '确认添加' }}
-      </el-button>
+        </el-button>
       </template>
     </el-dialog>
   </div>
@@ -387,12 +384,7 @@ onMounted(() => {
   border-radius: 10px;
 }
 
-.panel {
-  background: #fff;
-  border: 1px solid #eef0f4;
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05);
-}
+
 
 /* 统计卡片 */
 .stats-grid {
@@ -403,20 +395,23 @@ onMounted(() => {
 }
 
 .stat-card {
-  padding: 24px 28px;
-  border-radius: 20px;
+  padding: 20px;
+  border-radius: 10px;
+  display: flex;
+  gap: 10px
 }
 
 .stat-top {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  /* align-items: center; */
+  justify-content: flex-start;
 }
 
 .stat-label {
-  font-size: 15px;
-
+  font-size: 13px;
   color: #1f2937;
+  margin-bottom: 10px;
 }
 
 .stat-value {
@@ -428,7 +423,7 @@ onMounted(() => {
 
 .stat-value small {
   margin-left: 4px;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 400;
   color: #9ca3af;
 }
@@ -437,16 +432,16 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 26px;
+  /* margin-top: 26px; */
 }
 
 .stat-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
+  width: 45px;
+  height: 45px;
+  border-radius: 10px;
 }
 
 .stat-icon i {
@@ -458,10 +453,26 @@ onMounted(() => {
   height: 25px;
 }
 
-.stat-icon.blue { background: #e8f0ff; color: #4f6bff; }
-.stat-icon.green { background: #dcfce7; color: #16a34a; }
-.stat-icon.red { background: #fee2e2; color: #ef4444; }
-.stat-icon.cyan { background: #e0f2fe; color: #0284c7; }
+.stat-icon.blue {
+  background: #e8f0ff;
+  color: #4f6bff;
+}
+
+.stat-icon.green {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.stat-icon.red {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.stat-icon.cyan {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
 
 .stat-desc {
   margin-top: 14px;
@@ -471,8 +482,8 @@ onMounted(() => {
 
 /* 筛选区 */
 .filter-card {
-  margin-top: 22px;
-  padding: 20px 22px;
+  margin-top: 20px;
+  padding: 20px;
 }
 
 .card-label {
@@ -484,22 +495,29 @@ onMounted(() => {
 .filter-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
 }
 
+.filter-row>div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .search-input {
-  width: 320px;
+  width: 250px;
   max-width: 100%;
 }
 
 .filter-select {
-  width: 180px;
+  width: 150px;
 }
 
 /* 列表 */
 .table-card {
-  margin-top: 22px;
-  padding: 22px;
+  margin-top: 20px;
+  padding: 20px;
 }
 
 .table-head {
@@ -600,18 +618,25 @@ onMounted(() => {
     grid-column: 1;
   }
 }
-.el-button+.el-button{
+
+.el-button+.el-button {
   margin-left: 0;
 }
-.el-button{
+
+.el-button {
+  /* font-weight: bold; */
+}
+
+.add-btn .el-button {
   font-weight: bold;
+  margin-right: 3px;
 }
 </style>
 <style>
 /* 弹窗 teleport 至 body，需用全局样式 */
 .el-dialog.hospital-dialog {
   --el-color-primary: #2563eb;
-  border-radius: 16px;
+  border-radius: 10px;
   overflow: hidden;
 }
 </style>

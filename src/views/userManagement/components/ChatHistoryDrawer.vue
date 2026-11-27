@@ -2,7 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { Search, Refresh, ChatRound, Phone, ChatDotRound, Document } from '@element-plus/icons-vue'
 import { getPatientCommunicationsById } from '../../../api/index.js'
-import { displayText, formatTime, toPage } from '../utils.js'
+import { displayText, formatTime, toPage } from '../../../utils/index.js'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },

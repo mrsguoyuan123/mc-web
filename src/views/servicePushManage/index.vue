@@ -511,13 +511,6 @@ const rePush = (record) => {
   align-items: start;
 }
 
-.panel {
-  border: 1px solid #e6e9f0;
-  border-radius: 10px;
-  background: #fff;
-  box-sizing: border-box;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
-}
 
 .patient-panel,
 .setting-panel,

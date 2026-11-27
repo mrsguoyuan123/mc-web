@@ -1,6 +1,6 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus,
@@ -30,15 +30,16 @@ import {
   displayText,
   formatTime,
   toPage
-} from './utils.js'
+} from '../../utils/index.js'
 import AlertCardList from './components/AlertCardList.vue'
 import CustomerFormDialog from './components/CustomerFormDialog.vue'
 import CustomerRowDetail from './components/CustomerRowDetail.vue'
-import ChatHistoryDrawer from './relation/ChatHistoryDrawer.vue'
+import ChatHistoryDrawer from './components/ChatHistoryDrawer.vue'
 import ServiceRelationDrawer from './components/ServiceRelationDrawer.vue'
 import BatchAssignCsDialog from './components/BatchAssignCsDialog.vue'
 
 const router = useRouter()
+const route = useRoute()
 
 // 列表接口未返回的字段，列内统一展示该文案
 // 表格字段映射（以 GET /patients 返回的 Patient 为准）：
@@ -67,8 +68,22 @@ const query = reactive({
   disease: '',
   healthStatus: '',
   dataScope: '',
-  tag: ''
+  tag: '',
+  id: ''
 })
+
+
+watch(
+  () => route.query.id,
+  (newid) => {
+    if (newid) {
+      query.id = newid
+      query.page = 1
+      fetchList()
+    }
+  },
+ 
+)
 
 const loading = ref(false)
 const tableData = ref([])
@@ -133,7 +148,64 @@ const buildParams = () => {
   if (query.healthStatus) params.healthStatus = query.healthStatus
   if (query.dataScope) params.dataScope = query.dataScope
   if (query.tag) params.tag = query.tag
+  if (query.id) params.id = String(query.id)
   return params
+}
+
+/* ---------------- 运动方案配置状态 ---------------- */
+
+// 布尔归一：只有明确 true/false 才算配置态，其余返回 null（视为接口未提供）
+const toBoolLoose = (v) => {
+  if (v === true || v === 1 || v === '1' || v === 'true') return true
+  if (v === false || v === 0 || v === '0' || v === 'false') return false
+  return null
+}
+
+// 行内配置态：顶层 exercisePlanConfigured 优先，兜底 healthSnapshot 里的同名副本
+const rowPlanConfigured = (row) =>
+  toBoolLoose(row?.exercisePlanConfigured ?? row?.healthSnapshot?.exercisePlanConfigured)
+
+// 仅记录「接口确认无方案」的患者 id；行内已有配置态时不发请求
+const noPlanIds = ref(new Set())
+
+// 方案是否为空：兼容 planId/id/planNo 与 items/sets/exercises/list 多种结构
+const isPlanEmpty = (plan) => {
+  if (!plan || typeof plan !== 'object') return true
+  const planId = plan.planId ?? plan.id ?? plan.planNo
+  const items = plan.items ?? plan.sets ?? plan.exercises ?? plan.list
+  const hasPlanId = planId !== null && planId !== undefined && planId !== ''
+  const hasItems = Array.isArray(items) && items.length > 0
+  return !hasPlanId && !hasItems
+}
+
+const fetchExerciseFlags = async (rows) => {
+  const list = Array.isArray(rows) ? rows : []
+  const missing = new Set()
+  const needQuery = []
+
+  // 1) 行内已返回配置态的直接用，不再逐行请求
+  for (const row of list) {
+    const configured = rowPlanConfigured(row)
+    if (configured === true) continue
+    if (configured === false) {
+      missing.add(String(row.id))
+      continue
+    }
+    needQuery.push(row) // 字段缺失才回退查接口
+  }
+
+  // 2) 只对缺字段的行回退查询；请求失败或结构不识别不标记，避免误标
+  if (needQuery.length) {
+    const results = await Promise.allSettled(
+      needQuery.map((row) => getExercisePlanById(String(row.id)))
+    )
+    results.forEach((result, index) => {
+      if (result.status !== 'fulfilled') return
+      if (isPlanEmpty(result.value)) missing.add(String(needQuery[index].id))
+    })
+  }
+
+  noPlanIds.value = missing
 }
 
 const fetchList = async () => {
@@ -202,8 +274,10 @@ const handleReset = () => {
   query.healthStatus = ''
   query.dataScope = ''
   query.tag = ''
+  query.id = ''
   page.value = 1
   fetchList()
+  router.replace({ path: route.path, query: {} })
 }
 
 const handlePageChange = (value) => {
@@ -229,34 +303,12 @@ const toggleExpand = (row) => {
 /* ---------------- 勾选与批量操作 ---------------- */
 
 const tableRef = ref(null)
+// 展开行详情可用宽度：跟随表格可视宽度变化，避免详情内容撑出表格横向滚动
+const detailMaxWidth = ref('100%')
+let tableResizeObserver = null
 // 选中 id 集合（ref 维护，雪花 ID 统一字符串）
 const selectedIds = ref([])
 const assignVisible = ref(false)
-
-// 运动方案未配置的患者 id 集合
-// 列表接口未提供该字段，逐行调用 GET /patients/{id}/exercise/plan 判定：
-// planId 为 null 或 items 为空视为未配置；接口失败的行不做标记（避免误标）
-const noPlanIds = ref(new Set())
-
-const fetchExerciseFlags = async (rows) => {
-  const list = Array.isArray(rows) ? rows : []
-  if (!list.length) {
-    noPlanIds.value = new Set()
-    return
-  }
-  const results = await Promise.allSettled(
-    list.map((row) => getExercisePlanById(String(row.id)))
-  )
-  const missing = new Set()
-  results.forEach((result, index) => {
-    if (result.status !== 'fulfilled') return
-    const plan = result.value
-    if (!plan || plan.planId == null || !(Array.isArray(plan.items) && plan.items.length)) {
-      missing.add(String(list[index].id))
-    }
-  })
-  noPlanIds.value = missing
-}
 
 const handleSelectionChange = (rows) => {
   selectedIds.value = (rows || []).map((row) => String(row.id))
@@ -279,16 +331,26 @@ const riskLevelMap = computed(() => {
   return map
 })
 
-// 异常：风险提醒 HIGH 或健康状态为「警告」
+// 健康状态码值：后端为 GOOD / ATTENTION / ABNORMAL，兼容旧中文值
+const ABNORMAL_STATUSES = ['ABNORMAL', '异常', '警告']
+const ATTENTION_STATUSES = ['ATTENTION', '关注']
+
+// 异常：风险提醒 HIGH 或健康状态为异常
 const isAbnormal = (row) =>
-  riskLevelMap.value[String(row.id)] === 'HIGH' || row.healthStatus === '警告'
+  riskLevelMap.value[String(row.id)] === 'HIGH' || ABNORMAL_STATUSES.includes(row.healthStatus)
 
-// 关注：风险提醒 MEDIUM/LOW 或健康状态为「关注」
-const isAttention = (row) =>
-  Boolean(riskLevelMap.value[String(row.id)]) || row.healthStatus === '关注'
+// 关注：排除已判异常的行，避免「异常 + 关注」重复挂标签
+const isAttention = (row) => {
+  if (isAbnormal(row)) return false
+  return Boolean(riskLevelMap.value[String(row.id)]) || ATTENTION_STATUSES.includes(row.healthStatus)
+}
 
-// 运动方案未配置：运动方案接口确认无方案的行
-const isExerciseMissing = (row) => noPlanIds.value.has(String(row.id))
+// 运动方案未配置：行内有配置态就用行内值，否则看回退查询结果
+const isExerciseMissing = (row) => {
+  const configured = rowPlanConfigured(row)
+  if (configured !== null) return configured === false
+  return noPlanIds.value.has(String(row.id))
+}
 
 // 医院/科室名称：患者列表仅返回 hospitalId/departmentId，名称经字典接口 /dict/options 关联，
 // 字典缺失或行内无 id 时显示「接口未提供」
@@ -354,7 +416,7 @@ const handleAssignSaved = () => {
   fetchList()
 }
 
-// 批量归档：确认后调批量归档接口（待后端补路径，当前占位直接 resolve），本地移除所选并清空勾选
+// 批量归档：确认后调批量归档接口，本地移除所选并清空勾选
 const handleBatchArchive = async () => {
   if (!selectedIds.value.length) return
   const count = selectedIds.value.length
@@ -464,6 +526,7 @@ const onLocatePatient = (patientId) => {
   }
 }
 
+// 顶部四卡：abnormal/attention 取全量风险提醒汇总，normal 用总数倒算（口径待后端按数据范围返回）
 const healthStats = computed(() => {
   const abnormal = Number(riskSummary.value.high) || 0
   const attention = Number(riskSummary.value.medium) + Number(riskSummary.value.low) || 0
@@ -512,25 +575,52 @@ const onRowClick = (row, column) => {
 const rowClassName = () => 'clickable-row'
 
 onMounted(() => {
+  const newid = route.query.id
+  if(newid){
+    query.id = newid
+    query.page = 1
+    fetchList()
+  }
   fetchDict()
   fetchList()
   fetchAlerts()
+
+  nextTick(() => {
+    const tableEl = tableRef.value?.$el
+    if (!tableEl || typeof ResizeObserver === 'undefined') return
+    tableResizeObserver = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width
+      if (width) detailMaxWidth.value = `${Math.floor(width)}px`
+    })
+    tableResizeObserver.observe(tableEl)
+  })
+})
+
+onBeforeUnmount(() => {
+  tableResizeObserver?.disconnect()
+  tableResizeObserver = null
+})
+
+// 展开/收起后重新计算表格布局，防止固定列与展开行宽度错位
+watch(expandedId, () => {
+  nextTick(() => tableRef.value?.doLayout?.())
 })
 </script>
+
 
 <template>
   <div class="user-management-page">
     <div class="page-header">
       <div>
         <h1>用户管理仓</h1>
-        <p>统一维护患者档案、健康风险与服务关系。</p>
+        <p>查看和管理权限范围内的用户数据。</p>
       </div>
       <div class="header-actions">
-        <el-button :icon="Refresh" @click="fetchList">刷新</el-button>
+        <!-- <el-button :icon="Refresh" @click="fetchList">刷新</el-button> -->
         <el-button type="success" plain :icon="Download" :loading="exporting" @click="handleExport">
-          导出
+          导出用户
         </el-button>
-        <el-button type="primary" :icon="Plus" @click="openCreate">新增患者</el-button>
+        <el-button type="primary" :icon="Plus" @click="openCreate">新增用户</el-button>
       </div>
     </div>
 
@@ -538,7 +628,9 @@ onMounted(() => {
       <div class="overview-head">
         <div>
           <h2 class="overview-title">
-            <el-icon class="title-icon"><FirstAidKit /></el-icon>
+            <el-icon class="title-icon">
+              <FirstAidKit />
+            </el-icon>
             健康数据总览
           </h2>
           <p class="overview-subtitle">数据范围与用户列表一致，异常提醒可折叠查看，折叠后仍会在用户名旁显示风险标签。</p>
@@ -548,108 +640,49 @@ onMounted(() => {
       <div class="stat-grid">
         <div v-for="item in healthStats" :key="item.key" class="stat-card">
           <div class="stat-label">{{ item.label }}</div>
-          <el-icon class="stat-icon" :class="item.iconClass"><component :is="item.icon" /></el-icon>
+          <el-icon class="stat-icon" :class="item.iconClass">
+            <component :is="item.icon" />
+          </el-icon>
           <div class="stat-value">{{ item.value ?? 0 }}</div>
           <div class="stat-desc">{{ item.desc }}</div>
         </div>
       </div>
     </section>
 
-    <AlertCardList
-      :loading="alertLoading"
-      :alerts="riskAlerts"
-      :summary="riskSummary"
-      :patient-map="patientMap"
-      @locate="onLocatePatient"
-    />
+    <AlertCardList :loading="alertLoading" :alerts="riskAlerts" :summary="riskSummary" :patient-map="patientMap"
+      @locate="onLocatePatient" />
 
     <div class="panel filter-card">
       <div class="filter-row">
-        <el-input
-          v-model="query.keyword"
-          class="search-input"
-          size="large"
-          clearable
-          placeholder="搜索患者姓名、手机号"
-          @keyup.enter="handleSearch"
-          @clear="handleSearch"
-        >
+        <div>
+
+        <el-input v-model="query.keyword" class="search-input" size="" clearable placeholder="搜索姓名、保险ID或电话"
+          @keyup.enter="handleSearch" @clear="handleSearch">
           <template #prefix>
-            <el-icon><Search /></el-icon>
+            <el-icon>
+              <Search />
+            </el-icon>
           </template>
         </el-input>
-        <el-select
-          v-model="query.region"
-          class="filter-select"
-          size="large"
-          clearable
-          filterable
-          placeholder="全部区域"
-        >
-          <el-option
-            v-for="item in regionOptions"
-            :key="item.id || item.name"
-            :label="item.name"
-            :value="item.name"
-          />
+        <el-select v-model="query.region" class="filter-select" size="" clearable filterable placeholder="全部区域">
+          <el-option v-for="item in regionOptions" :key="item.id || item.name" :label="item.name" :value="item.name" />
         </el-select>
-        <el-select
-          v-model="query.hospitalId"
-          class="filter-select"
-          size="large"
-          clearable
-          placeholder="全部医院"
-          @change="onHospitalChange"
-        >
-          <el-option
-            v-for="item in hospitalOptions"
-            :key="item.id"
-            :label="item.name"
-            :value="String(item.id)"
-          />
+        <el-select v-model="query.hospitalId" class="filter-select" size="" clearable placeholder="全部医院"
+          @change="onHospitalChange">
+          <el-option v-for="item in hospitalOptions" :key="item.id" :label="item.name" :value="String(item.id)" />
         </el-select>
-        <el-select
-          v-model="query.departmentId"
-          class="filter-select"
-          size="large"
-          clearable
-          placeholder="全部科室"
-        >
-          <el-option
-            v-for="item in departmentOptions"
-            :key="item.id"
-            :label="item.name"
-            :value="String(item.id)"
-          />
+        <el-select v-model="query.departmentId" class="filter-select" size="" clearable placeholder="全部科室">
+          <el-option v-for="item in departmentOptions" :key="item.id" :label="item.name" :value="String(item.id)" />
         </el-select>
-        <el-select
-          v-model="query.doctorId"
-          class="filter-select"
-          size="large"
-          clearable
-          filterable
-          placeholder="全部医生"
-        >
-          <el-option
-            v-for="item in doctorOptions"
-            :key="String(item.id)"
-            :label="item.name"
-            :value="String(item.id)"
-          />
+        <el-select v-model="query.doctorId" class="filter-select" size="" clearable filterable placeholder="全部医生">
+          <el-option v-for="item in doctorOptions" :key="String(item.id)" :label="item.name" :value="String(item.id)" />
         </el-select>
-        <el-input
-          v-model="query.disease"
-          class="filter-select"
-          size="large"
-          clearable
-          placeholder="疾病关键字"
-          @keyup.enter="handleSearch"
-          @clear="handleSearch"
-        />
-        <el-select v-model="query.healthStatus" class="filter-select" size="large" clearable placeholder="健康状态">
+        <el-input v-model="query.disease" class="filter-select" size="" clearable placeholder="疾病关键字"
+          @keyup.enter="handleSearch" @clear="handleSearch" />
+        <el-select v-model="query.healthStatus" class="filter-select" size="" clearable placeholder="健康状态">
           <el-option v-for="item in HEALTH_STATUS_OPTIONS" :key="item" :label="item" :value="item" />
         </el-select>
-        <el-select v-model="query.dataScope" class="filter-select" size="large" clearable placeholder="数据范围">
+        <!-- <el-select v-model="query.dataScope" class="filter-select" size="" clearable placeholder="数据范围">
           <el-option
             v-for="item in DATA_SCOPE_OPTIONS"
             :key="item.value"
@@ -657,81 +690,68 @@ onMounted(() => {
             :value="item.value"
           />
         </el-select>
-        <el-select v-model="query.tag" class="filter-select" size="large" clearable placeholder="患者标签">
+        <el-select v-model="query.tag" class="filter-select" size="" clearable placeholder="患者标签">
           <el-option v-for="item in tagOptions" :key="item.id || item.name" :label="item.name" :value="item.name" />
-        </el-select>
-        <el-button type="primary" size="large" @click="handleSearch">查询</el-button>
-        <el-button size="large" @click="handleReset">重置</el-button>
+        </el-select> -->
+        </div>
+        <div>
+        <el-button type="primary" size="" @click="handleSearch">查询</el-button>
+        <el-button size="" @click="handleReset">重置</el-button>
       </div>
+    </div>
     </div>
 
     <div class="panel table-card">
       <div v-if="selectedIds.length" class="batch-bar">
         <div class="batch-info">
-          <el-icon class="batch-icon"><UserFilled /></el-icon>
+          <el-icon class="batch-icon">
+            <UserFilled />
+          </el-icon>
           <span>已选择 {{ selectedIds.length }} 位用户</span>
         </div>
         <div class="batch-actions">
           <el-button type="primary" plain @click="openAssignDialog">批量分配客服</el-button>
           <el-button type="danger" link @click="handleBatchArchive">
-            <el-icon><FolderOpened /></el-icon>批量归档
+            <el-icon>
+              <FolderOpened />
+            </el-icon>批量归档
           </el-button>
           <el-button :icon="Download" :loading="exporting" @click="handleExportSelected">导出所选</el-button>
           <el-button link type="primary" class="clear-link" @click="clearSelection">取消选择</el-button>
         </div>
       </div>
-      <el-table
-        ref="tableRef"
-        v-loading="loading"
-        :data="tableData"
-        stripe
-        row-key="id"
-        :row-class-name="rowClassName"
-        :expand-row-keys="expandedRow ? [String(expandedId)] : []"
-        @row-click="onRowClick"
+      <el-table ref="tableRef" v-loading="loading" :data="tableData" stripe row-key="id" :row-class-name="rowClassName"
+        :style="{ '--detail-max-width': detailMaxWidth }"
+        :expand-row-keys="expandedRow ? [String(expandedId)] : []" @row-click="onRowClick"
         @selection-change="handleSelectionChange"
-        @expand-change="(row, expandedRows) => (expandedId = expandedRows.length ? String(row.id) : '')"
-      >
+        @expand-change="(row, expandedRows) => (expandedId = expandedRows.length ? String(row.id) : '')">
         <el-table-column type="selection" width="48" align="center" reserve-selection />
         <el-table-column type="expand">
           <template #default="{ row }">
             <div class="row-detail-wrap">
-              <CustomerRowDetail
-                :record="row"
-                @view-detail="goDetail"
-                @edit-doctor="openEdit"
-                @group-manage="notReady('健康管理群管理')"
-                @service-relation="openRelation"
-                @view-communications="openChat"
-                @attachment-manage="notReady('附件管理')"
-                @edit-quota="openRelation"
-                @change-log="openRelation"
-              />
+              <CustomerRowDetail :record="row" @view-detail="goDetail" @edit-doctor="openEdit"
+                @group-manage="notReady('健康管理群管理')" @service-relation="openRelation" @view-communications="openChat"
+                @attachment-manage="notReady('附件管理')" @edit-quota="openRelation" @change-log="openRelation" />
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="用户姓名" min-width="200">
+        <el-table-column label="用户姓名" min-width="180">
           <template #default="{ row }">
             <div class="name-cell">
               <el-avatar :size="34">{{ (row.name || '-').slice(0, 1) }}</el-avatar>
               <div class="name-meta">
                 <span class="name-text">
                   {{ displayText(row.name) }}
-                  <el-tag v-if="isAbnormal(row)" type="danger" effect="dark" size="small">异常</el-tag>
-                  <el-tag v-if="isAttention(row)" type="warning" size="small">关注</el-tag>
-                  <el-tag
-                    v-if="isExerciseMissing(row)"
-                    type="danger"
-                    effect="plain"
-                    size="small"
-                    class="exercise-tag"
-                  >运动方案未配置</el-tag>
+                  <el-tag v-if="isAbnormal(row)" type="danger" effect="dark" size="small" class="status-tag">异常</el-tag>
+                  <el-tag v-else-if="isAttention(row)" type="warning" size="small" class="status-tag">关注</el-tag>
+                  <el-tag v-if="isExerciseMissing(row)" type="danger" effect="plain" size="small"
+                    class="exercise-tag">运动方案未配置</el-tag>
                 </span>
-                <span class="sub-text">{{ displayText(row.gender) }} · {{ displayText(row.age) }} 岁</span>
               </div>
             </div>
           </template>
         </el-table-column>
+
         <!-- 保险ID：接口未提供，患者列表/详情接口均无 insuranceId 字段，列内统一显示「接口未提供」 -->
         <el-table-column label="保险ID" min-width="120">
           <template #default>
@@ -764,14 +784,23 @@ onMounted(() => {
         </el-table-column>
         <el-table-column label="操作" width="190" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link @click.stop="openEdit(row)">编辑</el-button>
-            <el-button type="primary" link @click.stop="openChat(row)">沟通</el-button>
-            <el-button
-              type="danger"
-              link
-              :loading="archivingId === String(row.id)"
-              @click.stop="handleArchive(row)"
-            >删除</el-button>
+            <el-tooltip content="编辑" placement="top">
+              <el-button type="primary" link @click="openEdit(row)"><el-icon>
+                  <Edit />
+                </el-icon></el-button>
+            </el-tooltip>
+            <el-tooltip content="沟通" placement="top">
+              <el-button type="primary" link @click="openChat(row)">
+                <el-icon><ChatDotRound /></el-icon>
+
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="删除" placement="top">
+              <el-button type="danger" link @click="handleArchive(row)"><el-icon>
+                  <Delete />
+                </el-icon></el-button>
+            </el-tooltip>
+
           </template>
         </el-table-column>
         <template #empty>
@@ -779,34 +808,18 @@ onMounted(() => {
         </template>
       </el-table>
 
-      <el-pagination
-        class="list-pager"
-        background
-        :current-page="page"
-        :page-size="pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, prev, pager, next, sizes"
-        @current-change="handlePageChange"
-        @size-change="handleSizeChange"
-      />
+      <el-pagination class="list-pager" background :current-page="page" :page-size="pageSize"
+        :page-sizes="[10, 20, 50, 100]" :total="total" layout="total, prev, pager, next, sizes"
+        @current-change="handlePageChange" @size-change="handleSizeChange" />
     </div>
 
-    <CustomerFormDialog :visible="formVisible" :record="formRecord" @close="formVisible = false" @saved="handleFormSaved" />
-    <BatchAssignCsDialog
-      :visible="assignVisible"
-      :ids="selectedIds"
-      @close="assignVisible = false"
-      @saved="handleAssignSaved"
-    />
+    <CustomerFormDialog :visible="formVisible" :record="formRecord" @close="formVisible = false"
+      @saved="handleFormSaved" />
+    <BatchAssignCsDialog :visible="assignVisible" :ids="selectedIds" @close="assignVisible = false"
+      @saved="handleAssignSaved" />
     <ChatHistoryDrawer :visible="chatVisible" :record="chatRecord" @close="chatVisible = false" />
-    <ServiceRelationDrawer
-      v-model:visible="relationVisible"
-      :record="relationRecord"
-      @edit-match="notReady('调整客服 / 陪诊师匹配')"
-      @edit-doctor="openEdit"
-      @edit-quota="notReady('修改陪诊次数')"
-    />
+    <ServiceRelationDrawer v-model:visible="relationVisible" :record="relationRecord"
+      @edit-match="notReady('调整客服 / 陪诊师匹配')" @edit-doctor="openEdit" @edit-quota="notReady('修改陪诊次数')" />
   </div>
 </template>
 
@@ -844,12 +857,7 @@ onMounted(() => {
   gap: 8px;
 }
 
-.panel {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 16px;
-}
+
 
 .filter-row {
   display: flex;
@@ -859,11 +867,11 @@ onMounted(() => {
 }
 
 .search-input {
-  width: 240px;
+  width: 250px;
 }
 
 .filter-select {
-  width: 180px;
+  width: 140px;
 }
 
 .table-card {
@@ -928,7 +936,7 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 4px;
   font-size: 14px;
-  font-weight: 600;
+  /* font-weight: 600; */
   color: #111827;
 }
 
@@ -1010,7 +1018,7 @@ onMounted(() => {
   position: absolute;
   top: 16px;
   right: 18px;
-  font-size: 22px;
+  font-size: 33px;
   padding: 8px;
   border-radius: 50%;
 }
@@ -1054,8 +1062,35 @@ onMounted(() => {
 }
 
 .row-detail-wrap {
-  padding: 8px 18px 12px;
+  padding: 8px 16px 12px;
   background: #f9fafb;
+  box-sizing: border-box;
+  /* width: 100vw;
+  max-width: var(--detail-max-width, 100%); */
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.row-detail-wrap :deep(.customer-row-detail),
+.row-detail-wrap :deep(.detail-card),
+.row-detail-wrap :deep(.el-row),
+.row-detail-wrap :deep(.el-col),
+.row-detail-wrap :deep(.chat-panel) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.row-detail-wrap :deep(.detail-card) {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.row-detail-wrap :deep(.el-row) {
+  flex-wrap: wrap;
+}
+
+.user-management-page :deep(.el-table .el-table__expanded-cell) {
+  padding: 16px;
 }
 
 .list-pager {
@@ -1065,6 +1100,7 @@ onMounted(() => {
 }
 
 @media (max-width: 1100px) {
+
   .search-input,
   .filter-select {
     width: 100%;

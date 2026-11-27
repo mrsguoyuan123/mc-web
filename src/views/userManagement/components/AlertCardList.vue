@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { Warning, Location, ArrowDown, ArrowRight } from '@element-plus/icons-vue'
-import { RISK_LEVEL_TEXT, formatTime, displayText } from '../utils.js'
+import { RISK_LEVEL_TEXT, formatTime, displayText } from '../../../utils/index.js'
 
 const props = defineProps({
   loading: { type: Boolean, default: false },
@@ -15,7 +15,7 @@ const props = defineProps({
 
 const emit = defineEmits(['locate'])
 
-const collapsed = ref(false)
+const collapsed = ref(true)
 
 const abnormalList = computed(() => props.alerts.filter((item) => item.level === 'HIGH'))
 const attentionList = computed(() => props.alerts.filter((item) => item.level !== 'HIGH'))

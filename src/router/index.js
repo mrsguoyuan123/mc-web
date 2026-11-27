@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AdminLayout from '../layouts/AdminLayout.vue'
-import DashboardView from '../views/DashboardView.vue'
+import DashboardView from '../views/dashboard/index.vue'
 import LoginView from '../views/LoginView.vue'
 import PlaceholderView from '../views/PlaceholderView.vue'
 import DictView from '../views/dict/index.vue'
@@ -34,7 +34,8 @@ import OrderManageOverviewView from '../views/orderManageOverview/index.vue'
 import HealthConsultManageView from '../views/healthConsultManage/index.vue'
 import ServiceChatManageView from '../views/serviceChatManage/index.vue'
 import ServicePushManageView from '../views/servicePushManage/index.vue'
-import HospitalDashboardView from '../views/hospitalManage/dashboard.vue'
+import HospitalDashboardView from '../views/dashboardManagement/HospitalDashboard.vue'
+import DepartmentDashboardView from '../views/dashboardManagement/DepartmentDashboard.vue'
 import DataOverviewView from '../views/bigScreen/dataOverview.vue'
 import csManage from '../views/csManage/index.vue'
 import stationManage from '../views/stationManage/index.vue'
@@ -66,7 +67,7 @@ const routes = [
         name: 'dashboard',
         component: DashboardView,
         meta: {
-          title: '数据概览',
+          title: '数据看板',
           icon: 'DataLine',
           groupIcon: 'DataAnalysis',
           roles: ['admin', 'doctor']
@@ -77,37 +78,46 @@ const routes = [
         name: 'hospitalDashboard',
         component: HospitalDashboardView,
         meta: {
-          title: '可视化看板',
+          title: '医院效能看板',
           icon: 'DataLine',
-          group: '医院管理',
-          groupIcon: 'OfficeBuilding',
           roles: ['hospital']
         }
       },
       {
-        path: '/hospitalManage/users',
-        name: 'hospitalUsers',
-        component: UserView,
+        // 科室效能看板：科室管理角色默认首页（getHomePath 指向此路由）
+        path: '/hospitalManage/departmentDashboard',
+        name: 'departmentDashboard',
+        component: DepartmentDashboardView,
         meta: {
-          title: '人员管理',
-          icon: 'User',
-          group: '医院管理',
-          groupIcon: 'OfficeBuilding',
-          roles: ['hospital']
+          title: '科室效能看板',
+          icon: 'DataLine',
+          roles: ['department']
         }
       },
-      {
-        path: '/hospitalManage/healthConsult',
-        name: 'hospitalHealthConsult',
-        component: HealthConsultManageView,
-        meta: {
-          title: '健康咨询',
-          icon: 'ChatDotRound',
-          group: '医院管理',
-          groupIcon: 'OfficeBuilding',
-          roles: ['hospital']
-        }
-      },
+      // {
+      //   path: '/hospitalManage/users',
+      //   name: 'hospitalUsers',
+      //   component: UserView,
+      //   meta: {
+      //     title: '人员管理',
+      //     icon: 'User',
+      //     group: '医院管理',
+      //     groupIcon: 'OfficeBuilding',
+      //     roles: ['hospital']
+      //   }
+      // },
+      // {
+      //   path: '/hospitalManage/healthConsult',
+      //   name: 'hospitalHealthConsult',
+      //   component: HealthConsultManageView,
+      //   meta: {
+      //     title: '健康咨询',
+      //     icon: 'ChatDotRound',
+      //     group: '医院管理',
+      //     groupIcon: 'OfficeBuilding',
+      //     roles: ['hospital']
+      //   }
+      // },
       // {
       //   path: '/orderManageOverview',
       //   name: 'orderManageOverview',
@@ -242,7 +252,7 @@ const routes = [
         name: 'serviceChatManage',
         component: ServiceChatManageView,
         meta: {
-          title: '聊天管理',
+          title: '客服工作台',
           icon: 'ChatDotRound',
           group: '客服',
           groupIcon: 'Service',
@@ -256,7 +266,7 @@ const routes = [
         name: 'servicePushManage',
         component: ServicePushManageView,
         meta: {
-          title: '推送管理',
+          title: '专业咨询/医生留言',
           icon: 'Bell',
           group: '客服',
           groupIcon: 'Service',
@@ -282,7 +292,8 @@ const routes = [
         meta: {
           title: '用户管理仓',
           icon: 'User',
-          roles: ['admin']
+          // 公司管理员 / 医院管理 / 科室管理共用同一用户列表页
+          roles: ['admin', 'hospital', 'department']
         }
       },
       {
@@ -293,7 +304,7 @@ const routes = [
         meta: {
           title: '用户详情',
           hidden: true,
-          roles: ['admin']
+          roles: ['admin', 'hospital', 'department']
         }
       },
       {
@@ -489,6 +500,28 @@ const routes = [
         }
       },
       {
+        // 驻点角色页面：业务功能待开发，先使用 PlaceholderView 占位
+        path: '/station/workbench',
+        name: 'stationWorkbench',
+        component: PlaceholderView,
+        meta: {
+          title: '客服工作台',
+          icon: 'ChatDotRound',
+          roles: ['station']
+        }
+      },
+      {
+        // 驻点角色页面：业务功能待开发，先使用 PlaceholderView 占位
+        path: '/station/doctorAdd',
+        name: 'stationDoctorAdd',
+        component: PlaceholderView,
+        meta: {
+          title: '医生角色添加',
+          icon: 'UserFilled',
+          roles: ['station']
+        }
+      },
+      {
         path: '/accountManage',
         name: 'accountManage',
         component: AccountManageView,
@@ -513,7 +546,7 @@ const routes = [
         meta: {
           title: '无权限访问',
           hidden: true,
-          roles: ['admin', 'doctor', 'hospital']
+          roles: ['admin', 'doctor', 'hospital', 'department', 'station']
         }
       }
     ]
@@ -557,7 +590,11 @@ router.beforeEach(async (to) => {
 
   // 兼容历史 meta.roles
   if (to.meta.roles && !auth.hasRole(to.meta.roles)) {
-    return auth.role === 'service' || auth.role === 'hospital'
+    // 兜底防死循环：/403 自身仍无权访问时终止导航，避免 /403 -> /403 无限重定向
+    if (to.path === '/403') return false
+    const homeRoleCodes = ['service', 'hospital', 'department', 'station']
+    // 通过 hasRole 走别名映射，兼容 pc_station / pc_customer_service 等真实角色码
+    return auth.hasRole(homeRoleCodes)
       ? { path: getHomePath(auth.role) }
       : { path: '/403' }
   }

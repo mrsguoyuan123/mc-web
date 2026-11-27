@@ -1,9 +1,9 @@
 <script setup>
 import { ref } from 'vue'
-import MessageTemplateTab from './MessageTemplateTab.vue'
-import SendRecordTab from './SendRecordTab.vue'
-import ReadStatTab from './ReadStatTab.vue'
-import TriggerRuleTab from './TriggerRuleTab.vue'
+import MessageTemplateTab from './components/MessageTemplateTab.vue'
+import SendRecordTab from './components/SendRecordTab.vue'
+import ReadStatTab from './components/ReadStatTab.vue'
+import TriggerRuleTab from './components/TriggerRuleTab.vue'
 
 const activeTab = ref('template')
 const tabs = [

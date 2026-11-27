@@ -21,7 +21,7 @@ import {
   getStaffPage,
   updatePatientMatchById
 } from '../../api/index.js'
-import { displayText } from '../userManagement/utils.js'
+import { displayText } from '../../utils/index.js'
 import CustomerFormDialog from '../userManagement/components/CustomerFormDialog.vue'
 import AttachmentPanel from './components/AttachmentPanel.vue'
 import DietAnalysisPanel from './components/DietAnalysisPanel.vue'

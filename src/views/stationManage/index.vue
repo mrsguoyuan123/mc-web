@@ -8,9 +8,9 @@ import {
   getStaffWorkloadById,
   updateStaffStatusById
 } from '../../api/index.js'
-import ServiceRecords from './ServiceRecords.vue'
-import EscortBookingTab from './EscortBookingTab.vue'
-import EscortOrderTab from './EscortOrderTab.vue'
+import ServiceRecords from './components/ServiceRecords.vue'
+import EscortBookingTab from './components/EscortBookingTab.vue'
+import EscortOrderTab from './components/EscortOrderTab.vue'
 
 const router = useRouter()
 
@@ -88,6 +88,11 @@ const fetchList = async () => {
   }
 }
 
+const toEscortBookingTab = (row) => { 
+  console.log(row)
+  detailVisible.value = false
+  activeTab.value = 'booking'
+}
 const handleSearch = () => { page.value = 1; fetchList() }
 const handleReset = () => {
   keyword.value = ''
@@ -148,9 +153,13 @@ const openDetail = (row) => {
 const detailWorkload = computed(() => workloadOf(detailRow.value) || {})
 
 // 服务用户：跳转用户管理仓
-const goUserManagement = () => {
-  detailVisible.value = false
-  router.push('/userManagement')
+const goUserManagement = async (row) => {
+  console.log(row)
+  const id = row.id
+  router.push({
+    path: '/userManagement',
+    query: { id: id }
+  })
 }
 
 onMounted(() => {
@@ -172,10 +181,11 @@ onMounted(() => {
       <!-- 筛选条件 -->
       <div class="panel filter-card">
         <div class="filter-row">
+          <div>                   
           <el-input
             v-model="keyword"
             class="search-input"
-            size="large"
+            size=""
             clearable
             placeholder="搜索驻点人员、驻点或手机号"
             @keyup.enter="handleSearch"
@@ -185,15 +195,18 @@ onMounted(() => {
               <el-icon><Search /></el-icon>
             </template>
           </el-input>
-          <el-select v-model="filterStation" class="filter-select" size="large" clearable placeholder="全部驻点">
+          <el-select v-model="filterStation" class="filter-select" size="" clearable placeholder="全部驻点">
             <el-option v-for="station in stationOptions" :key="station" :label="station" :value="station" />
           </el-select>
-          <el-select v-model="filterStatus" class="filter-select" size="large" clearable placeholder="全部状态">
+          <el-select v-model="filterStatus" class="filter-select" size="" clearable placeholder="全部状态">
             <el-option label="启用" :value="1" />
             <el-option label="停用" :value="0" />
           </el-select>
-          <el-button type="primary" size="large" @click="handleSearch">查询</el-button>
-          <el-button size="large" @click="handleReset">重置</el-button>
+           </div>
+                <div>
+          <el-button type="primary" size="" @click="handleSearch">查询</el-button>
+          <el-button size="" @click="handleReset">重置</el-button>
+           </div>
         </div>
       </div>
 
@@ -203,7 +216,7 @@ onMounted(() => {
           <el-table-column label="姓名" min-width="150">
             <template #default="{ row }">
               <div class="name-cell">
-                <el-avatar :size="32">{{ (row.name || '-').slice(0, 1) }}</el-avatar>
+                <!-- <el-avatar :size="32">{{ (row.name || '-').slice(0, 1) }}</el-avatar> -->
                 <span class="name-text">{{ row.name }}</span>
               </div>
             </template>
@@ -225,18 +238,22 @@ onMounted(() => {
           </el-table-column>
           <el-table-column label="状态" width="100" align="center">
             <template #default="{ row }">
-              <el-switch
+            <span class="status-cell" :class="Number(row.status) === 1 ? 'is-on' : 'is-off'">
+              <i class="status-dot"></i>{{ Number(row.status) === 1 ? '启用' : '停用' }}
+            </span>
+          </template>
+          </el-table-column>
+          <el-table-column label="操作" width="300" fixed="right">
+            <template #default="{ row }">
+              <el-button type="primary" link :icon="View" @click="openDetail(row)">详情</el-button>
+              <el-button type="primary" link :icon="User" @click="goUserManagement(row)">服务用户</el-button>
+              <el-button type="primary" link :icon="Calendar" @click="toEscortBookingTab(row)">陪诊预约</el-button>
+            <el-switch
+            class="ml-10"
                 :model-value="Number(row.status) === 1"
                 :loading="statusLoadingId === String(row.id)"
                 @change="onStatusChange(row)"
               />
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="280" fixed="right">
-            <template #default="{ row }">
-              <el-button type="primary" link :icon="View" @click="openDetail(row)">详情</el-button>
-              <el-button type="primary" link :icon="User" @click="goUserManagement">服务用户</el-button>
-              <el-button type="primary" link :icon="Calendar" disabled>陪诊预约</el-button>
             </template>
           </el-table-column>
           <template #empty>
@@ -303,9 +320,10 @@ onMounted(() => {
         />
 
         <div class="drawer-footer">
-          <el-button type="primary" size="large" :icon="User" @click="goUserManagement">查看服务用户</el-button>
+          <el-button type="primary" size="" :icon="User" @click="goUserManagement(detailRow)">查看服务用户</el-button>
+          <el-button type="primary" size="" :icon="User"  @click="toEscortBookingTab(row)">查看陪诊预约</el-button>
           <el-button
-            size="large"
+            size=""
             :type="Number(detailRow.status) === 1 ? 'danger' : 'primary'"
             :loading="statusLoadingId === String(detailRow.id)"
             @click="onStatusChange(detailRow)"
@@ -340,12 +358,7 @@ onMounted(() => {
   margin-top: 18px;
 }
 
-.panel {
-  background: #fff;
-  border: 1px solid #eef0f4;
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05);
-}
+
 
 .filter-card {
   margin-top: 8px;
@@ -359,12 +372,12 @@ onMounted(() => {
 }
 
 .search-input {
-  width: 320px;
+  width: 250px;
   max-width: 100%;
 }
 
 .filter-select {
-  width: 180px;
+  width: 150px;
 }
 
 .table-card {
@@ -378,9 +391,7 @@ onMounted(() => {
   gap: 8px;
 }
 
-.name-text {
-  font-weight: 600;
-}
+
 
 .link-text {
   color: #2563eb;

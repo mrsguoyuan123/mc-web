@@ -7,6 +7,7 @@ import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
+import Stethoscope from './components/Stethoscope.vue'
 import { setBusinessErrorHandler } from './api/frontApikit.js'
 import vCan from './directives/can.js'
 import './style.css'
@@ -17,6 +18,9 @@ const pinia = createPinia()
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component)
 }
+
+// 自定义图标：Element Plus 无听诊器，医生管理仓菜单使用，注册名与路由 meta.groupIcon 对应
+app.component('Stethoscope', Stethoscope)
 
 app.use(pinia)
 app.use(router)

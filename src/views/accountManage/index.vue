@@ -445,7 +445,7 @@ onMounted(() => {
               </div>
               <div class="suffix-input">
                 <el-input-number v-model="security.sessionTimeout" :min="5" :max="240" />
-                <span>分钟</span>
+                <span class="unit">分钟</span>
               </div>
             </div>
             <div class="security-item input-item">
@@ -456,7 +456,7 @@ onMounted(() => {
               </div>
               <div class="suffix-input">
                 <el-input-number v-model="security.passwordExpiry" :min="30" :max="365" />
-                <span>天</span>
+                <span class="unit">天</span>
               </div>
             </div>
           </div>
@@ -565,18 +565,18 @@ onMounted(() => {
       </template>
       <el-form ref="infoRef" :model="infoForm" :rules="infoRules" label-position="top">
         <el-form-item label="真实姓名" prop="name">
-          <el-input v-model="infoForm.name" size="large" />
+          <el-input v-model="infoForm.name" size="" />
         </el-form-item>
         <el-form-item label="邮箱地址" prop="email">
-          <el-input v-model="infoForm.email" size="large" />
+          <el-input v-model="infoForm.email" size="" />
         </el-form-item>
         <el-form-item label="手机号码" prop="phone">
-          <el-input v-model="infoForm.phone" size="large" />
+          <el-input v-model="infoForm.phone" size="" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button size="large" @click="infoVisible = false">取消</el-button>
-        <el-button type="primary" size="large" @click="saveInfo">保存修改</el-button>
+        <el-button size="" @click="infoVisible = false">取消</el-button>
+        <el-button type="primary" size="" @click="saveInfo">保存修改</el-button>
       </template>
     </el-dialog>
 
@@ -590,19 +590,19 @@ onMounted(() => {
       </template>
       <el-form ref="pwdRef" :model="pwdForm" :rules="pwdRules" label-position="top">
         <el-form-item label="当前密码" prop="oldPwd">
-          <el-input v-model="pwdForm.oldPwd" type="password" size="large" show-password placeholder="请输入当前密码" />
+          <el-input v-model="pwdForm.oldPwd" type="password" size="" show-password placeholder="请输入当前密码" />
         </el-form-item>
         <el-form-item label="新密码" prop="newPwd">
-          <el-input v-model="pwdForm.newPwd" type="password" size="large" show-password placeholder="请输入新密码" />
+          <el-input v-model="pwdForm.newPwd" type="password" size="" show-password placeholder="请输入新密码" />
           <span class="form-hint">密码长度至少8位，建议包含大小写字母、数字和特殊字符</span>
         </el-form-item>
         <el-form-item label="确认新密码" prop="confirmPwd">
-          <el-input v-model="pwdForm.confirmPwd" type="password" size="large" show-password placeholder="请再次输入新密码" />
+          <el-input v-model="pwdForm.confirmPwd" type="password" size="" show-password placeholder="请再次输入新密码" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button size="large" @click="pwdVisible = false">取消</el-button>
-        <el-button type="primary" size="large" @click="savePwd">确认修改</el-button>
+        <el-button size="" @click="pwdVisible = false">取消</el-button>
+        <el-button type="primary" size="" @click="savePwd">确认修改</el-button>
       </template>
     </el-dialog>
   </div>
@@ -617,12 +617,7 @@ onMounted(() => {
 .page-header h1 { margin: 0; font-size: 24px; font-weight: 700; }
 .page-header p { margin: 8px 0 0; font-size: 13px; color: #9ca3af; }
 
-.panel {
-  background: #fff;
-  border: 1px solid #eef0f4;
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05);
-}
+
 .panel h3 { margin: 0; font-size: 16px; font-weight: 700; }
 .panel-sub { margin: 6px 0 0; font-size: 13px; color: #9ca3af; }
 
@@ -725,5 +720,9 @@ onMounted(() => {
 .el-dialog.account-dialog .el-input__wrapper.is-focus,
 .el-dialog.account-dialog .el-textarea__inner:focus {
   background: #fff; box-shadow: 0 0 0 1px #2563eb;
+}
+.unit{
+  width: 30px;
+  text-align: right;
 }
 </style>

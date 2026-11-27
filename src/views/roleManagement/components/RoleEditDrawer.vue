@@ -14,7 +14,7 @@ import {
   updateRoleDataScopeById,
   getRoleAccountsById
 } from '../../../api/index.js'
-import { isMissing, MISSING_TEXT } from '../utils.js'
+import { isMissing, MISSING_TEXT } from '../../../utils/index.js'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -531,18 +531,14 @@ const handleSave = async () => {
         class="account-alert"
       />
 
-      <div class="tab-header">
-        <button
+      <el-tabs v-model="currentTab" class="role-tabs">
+        <el-tab-pane
           v-for="tab in TABS"
           :key="tab.key"
-          type="button"
-          class="tab-item"
-          :class="{ active: currentTab === tab.key }"
-          @click="currentTab = tab.key"
-        >
-          {{ tab.label }}
-        </button>
-      </div>
+          :label="tab.label"
+          :name="tab.key"
+        />
+      </el-tabs>
 
       <!-- 基本信息 -->
       <el-form
@@ -912,29 +908,12 @@ const handleSave = async () => {
   margin-bottom: 16px;
 }
 
-.tab-header {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+.role-tabs {
   margin-bottom: 18px;
 }
 
-.tab-item {
-  padding: 10px 4px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background: transparent;
-  font-size: 14px;
-  color: #4b5563;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.tab-item.active {
-  color: #2563eb;
-  font-weight: 600;
-  border-color: #2563eb;
-  background: #eff6ff;
+.role-tabs :deep(.el-tabs__header) {
+  margin: 0;
 }
 
 .lock-tip {

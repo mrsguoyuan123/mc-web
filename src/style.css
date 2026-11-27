@@ -45,6 +45,7 @@ body {
   color: #374151;
   font-weight: 600;
 }
+
 /* ===== 全站标签五色体系（蓝/绿/橙/红/灰，浅色底+同色文字） ===== */
 .el-tag {
   height: 24px;
@@ -64,61 +65,82 @@ body {
 
 /* 默认无类型 → 灰色 */
 .el-tag {
-  background: rgba(243,244,246,0.5);
+  background: rgba(243, 244, 246, 0.5);
   color: #4b5563;
 }
 
 .el-tag.el-tag--primary {
-  background: rgba(232,241,255,0.5);
+  background: rgba(232, 241, 255, 0.5);
   color: #2563eb;
 }
 
 .el-tag.el-tag--success {
-  background: rgba(220,252,231,0.5);
+  background: rgba(220, 252, 231, 0.5);
   color: #16a34a;
 }
 
 .el-tag.el-tag--warning {
-  background: rgba(255,244,229,0.5);
+  background: rgba(255, 244, 229, 0.5);
   color: #f97316;
 }
 
 .el-tag.el-tag--danger {
-  background: rgba(254,240,240,0.5);
+  background: rgba(254, 240, 240, 0.5);
   color: #f5222d;
 }
 
 .el-tag.el-tag--info {
-  background: rgba(243,244,246,0.5);
+  background: rgba(243, 244, 246, 0.5);
   color: #4b5563;
 }
 
 /* effect=dark/plain 同样统一为浅色风格 */
 .el-tag.el-tag--dark,
 .el-tag.el-tag--plain {
-  background: var(--tag-soft-bg, rgba(243,244,246,0.5));
+  background: var(--tag-soft-bg, rgba(243, 244, 246, 0.5));
   color: var(--tag-soft-color, #4b5563);
   border-color: transparent;
 }
 
 .el-tag.el-tag--primary.el-tag--dark,
-.el-tag.el-tag--primary.el-tag--plain { --tag-soft-bg: rgba(232,241,255,0.5); --tag-soft-color: #2563eb; }
+.el-tag.el-tag--primary.el-tag--plain {
+  --tag-soft-bg: rgba(232, 241, 255, 0.5);
+  --tag-soft-color: #2563eb;
+}
 
 .el-tag.el-tag--success.el-tag--dark,
-.el-tag.el-tag--success.el-tag--plain { --tag-soft-bg: rgba(220,252,231,0.5); --tag-soft-color: #16a34a; }
+.el-tag.el-tag--success.el-tag--plain {
+  --tag-soft-bg: rgba(220, 252, 231, 0.5);
+  --tag-soft-color: #16a34a;
+}
 
 .el-tag.el-tag--warning.el-tag--dark,
-.el-tag.el-tag--warning.el-tag--plain { --tag-soft-bg: rgba(255,244,229,0.5); --tag-soft-color: #f97316; }
+.el-tag.el-tag--warning.el-tag--plain {
+  --tag-soft-bg: rgba(255, 244, 229, 0.5);
+  --tag-soft-color: #f97316;
+}
 
 .el-tag.el-tag--danger.el-tag--dark,
-.el-tag.el-tag--danger.el-tag--plain { --tag-soft-bg: rgba(254,240,240,0.5); --tag-soft-color: #f5222d; }
+.el-tag.el-tag--danger.el-tag--plain {
+  --tag-soft-bg: rgba(254, 240, 240, 0.5);
+  --tag-soft-color: #f5222d;
+}
 
 .el-tag.el-tag--info.el-tag--dark,
-.el-tag.el-tag--info.el-tag--plain { --tag-soft-bg: rgba(243,244,246,0.5); --tag-soft-color: #4b5563; }
+.el-tag.el-tag--info.el-tag--plain {
+  --tag-soft-bg: rgba(243, 244, 246, 0.5);
+  --tag-soft-color: #4b5563;
+}
 
 /* 标签内图标/关闭图标跟随文字色 */
-.el-tag .el-icon { color: inherit; }
-.el-tag .el-tag__close { color: inherit; }
+.el-tag .el-icon {
+  color: inherit;
+}
+
+.el-tag .el-tag__close {
+  color: inherit;
+}
+
 /* ===== 全站分页：白底描边方块 + 当前页浅蓝填充 + 条数选择器 ===== */
 .el-pagination {
   --el-pagination-button-bg-color: #fff;
@@ -182,15 +204,18 @@ body {
 .el-pagination .el-pagination__sizes {
   margin: 0 0 0 10px;
 }
+
 /* 列表分页统一容器 */
 .list-pager {
   display: flex;
   justify-content: flex-end;
   margin-top: 18px;
 }
+
 /* 全站按钮统一圆角 */
 .el-button {
   border-radius: 4px !important;
+  font-size: 12px;
 }
 
 /* ===== 全站 Tabs：大号下划线风格 ===== */
@@ -218,11 +243,13 @@ body {
   border-radius: 0;
   background-color: #2563eb;
 }
-.el-tabs__item{
+
+.el-tabs__item {
   font-size: 15px;
   height: 40px;
   line-height: 40px;
 }
+
 /* ===== 表格操作栏图标按钮（参考医生管理页） ===== */
 .el-table .el-button.is-link,
 .el-table .el-button.is-text {
@@ -230,10 +257,123 @@ body {
   padding: 2px;
 }
 
-.el-table .el-button > .el-icon {
-  margin-left: 12px;
+.el-table .el-button>.el-icon {
+  /* margin-left: 12px; */
 }
-.el-table .el-icon{
- font-size: 1.2em;
- line-height: 1.2em;
+
+.el-table .el-icon {
+  font-size: 1.2em;
+  line-height: 1.2em;
+}
+
+.mr-10 {
+  margin-right: 10px;
+}
+
+.ml-10 {
+  margin-left: 10px;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.font-bold {
+  font-weight: bold;
+}
+
+.table-top {
+  margin: 10px 0;
+}
+
+.font-12 {
+  font-size: 12px;
+}
+
+.font-info {
+  color: #9ca3af;
+}
+
+
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.filter-row>div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  width: 250px;
+  max-width: 100%;
+}
+
+.filter-select {
+  width: 150px;
+}
+
+.status-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-cell.is-on {
+  color: #059669;
+}
+
+.status-cell.is-on .status-dot {
+  background: #10b981;
+}
+
+.status-cell.is-off {
+  color: #9ca3af;
+}
+
+.status-cell.is-off .status-dot {
+  background: #d1d5db;
+}
+
+
+.panel {
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05);
+  padding: 20px;
+  margin-bottom: 20px;
+
+}
+
+.filter-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 20px;
+}
+
+.el-date-editor.el-input {
+  width: 100%
+}
+.tab-label{
+  font-size: 14px;
 }

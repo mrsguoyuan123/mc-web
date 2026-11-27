@@ -645,12 +645,7 @@ onBeforeUnmount(() => {
   gap: 6px;
 }
 
-.panel {
-  background: #fff;
-  border: 1px solid #eef0f4;
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05);
-}
+
 
 .chart-card {
   margin-top: 22px;

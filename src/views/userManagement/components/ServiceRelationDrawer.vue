@@ -10,7 +10,7 @@ import {
   formatTime,
   toPage,
   RELATION_TYPE_TEXT
-} from '../utils.js'
+} from '../../../utils/index.js'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },

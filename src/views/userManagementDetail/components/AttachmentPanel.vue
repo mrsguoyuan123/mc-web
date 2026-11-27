@@ -16,7 +16,7 @@ import {
   uploadFile
 } from '../../../api/index.js'
 import { BASE_URL } from '../../../api/frontApikit.js'
-import { displayText, formatTime, toPage } from '../../userManagement/utils.js'
+import { displayText, formatTime, toPage } from '../../../utils/index.js'
 
 const props = defineProps({
   patientId: { type: [String, Number], default: '' }

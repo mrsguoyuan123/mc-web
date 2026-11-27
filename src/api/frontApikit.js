@@ -397,6 +397,14 @@ function buildBody(data, headers) {
   return JSON.stringify(data)
 }
 
+function buildRawBody(rawBody, headers) {
+  if (rawBody === undefined || rawBody === null) return undefined
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json;charset=UTF-8')
+  }
+  return String(rawBody)
+}
+
 /**
  * 统一请求方法。
  * @param {string} url 相对 BASE_URL 的路径或完整 http(s) 地址
@@ -406,13 +414,22 @@ function buildBody(data, headers) {
  * @param {object|FormData} [options.data] 请求体（普通对象自动 JSON 序列化）
  * @param {object} [options.headers] 自定义请求头
  * @param {boolean} [options.skipAuth=false] 跳过 Authorization 注入（登录接口用）
+ * @param {string} [options.rawBody] 已序列化的请求体，发送时不再做 JSON.stringify
  * @param {boolean} [options._retry=false] 内部标记：是否为 401 刷新后的重试
  * @returns {Promise<any>} 统一响应体中的 data（长数字 ID 已为字符串）
  */
 export async function request(url, options = {}) {
-  const { method = 'GET', params, data, headers: customHeaders, skipAuth = false, _retry = false } = options
+  const {
+    method = 'GET',
+    params,
+    data,
+    headers: customHeaders,
+    skipAuth = false,
+    rawBody,
+    _retry = false
+  } = options
   const headers = buildHeaders(customHeaders, skipAuth)
-  const body = buildBody(data, headers)
+  const body = rawBody !== undefined ? buildRawBody(rawBody, headers) : buildBody(data, headers)
 
   let response
   try {

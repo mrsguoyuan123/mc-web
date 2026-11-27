@@ -141,7 +141,7 @@ const { page: caPage, pageSize: caSize, pagedData: pagedCampuses, total: caTotal
 
     <!-- 筛选条件 -->
     <div class="panel filter-card">
-      <div class="card-label">筛选条件</div>
+      
       <div class="filter-row">
         <el-input v-model="keyword" class="search-input" size="large" clearable
           placeholder="搜索院区名称、医院或地址...">
@@ -276,12 +276,7 @@ const { page: caPage, pageSize: caSize, pagedData: pagedCampuses, total: caTotal
   border-radius: 10px;
 }
 
-.panel {
-  background: #fff;
-  border: 1px solid #eef0f4;
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05);
-}
+
 
 /* 统计卡片 */
 .stats-grid {
@@ -376,7 +371,7 @@ const { page: caPage, pageSize: caSize, pagedData: pagedCampuses, total: caTotal
 }
 
 .search-input {
-  width: 320px;
+  width: 250px;
   max-width: 100%;
 }
 

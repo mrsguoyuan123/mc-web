@@ -214,7 +214,7 @@ onMounted(() => {
         <h1>Banner管理</h1>
         <p>管理小程序各页面的Banner轮播图</p>
       </div>
-      <el-button type="primary" class="btn-blue" size="large" @click="openAdd">
+      <el-button type="primary" class="btn-blue" size="" @click="openAdd">
         <el-icon><Plus /></el-icon>添加Banner
       </el-button>
     </div>
@@ -222,7 +222,7 @@ onMounted(() => {
     <!-- 筛选 -->
     <div class="panel filter-card">
       <span class="filter-label">展示位置：</span>
-      <el-select v-model="filterPosition" class="filter-select" size="large" clearable placeholder="全部位置">
+      <el-select v-model="filterPosition" class="filter-select" size="" clearable placeholder="全部位置">
         <el-option
           v-for="item in POSITION_OPTIONS"
           :key="item.value"
@@ -323,23 +323,23 @@ onMounted(() => {
 
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
         <el-form-item label="标题" prop="title">
-          <el-input v-model="form.title" size="large" placeholder="请输入Banner标题" />
+          <el-input v-model="form.title" size="" placeholder="请输入Banner标题" />
         </el-form-item>
         <el-form-item label="描述">
           <el-input v-model="form.description" type="textarea" :rows="2" resize="none" placeholder="请输入Banner描述" />
         </el-form-item>
         <el-form-item label="图片URL" prop="imageUrl">
-          <el-input v-model="form.imageUrl" size="large" placeholder="https://example.com/banner.jpg" />
+          <el-input v-model="form.imageUrl" size="" placeholder="https://example.com/banner.jpg" />
         </el-form-item>
         <el-image v-if="form.imageUrl" :src="form.imageUrl" fit="cover" class="form-preview">
           <template #error><div class="img-fallback">图片加载失败</div></template>
         </el-image>
         <el-form-item label="跳转链接">
-          <el-input v-model="form.linkUrl" size="large" placeholder="/page/path 或 https://example.com" />
+          <el-input v-model="form.linkUrl" size="" placeholder="/page/path 或 https://example.com" />
         </el-form-item>
         <div class="form-grid">
           <el-form-item label="展示位置" prop="position">
-            <el-select v-model="form.position" class="full-control" size="large" placeholder="请选择展示位置">
+            <el-select v-model="form.position" class="full-control" size="" placeholder="请选择展示位置">
               <el-option
                 v-for="item in POSITION_OPTIONS"
                 :key="item.value"
@@ -351,18 +351,13 @@ onMounted(() => {
           <el-form-item label="排序号">
             <el-input-number v-model="form.sortNo" :min="1" controls-position="right" class="full-control" placeholder="数字越小越靠前" />
           </el-form-item>
-          <el-form-item label="启用状态">
-            <div class="switch-line">
-              <el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" />
-              <span>{{ form.enabled === 1 ? '已启用' : '已停用' }}</span>
-            </div>
-          </el-form-item>
+          
           <el-form-item label="开始日期">
             <el-date-picker
               v-model="form.startDate"
               type="date"
               class="full-control"
-              size="large"
+              size=""
               value-format="YYYY-MM-DD"
               placeholder="年 / 月 / 日"
             />
@@ -372,17 +367,23 @@ onMounted(() => {
               v-model="form.endDate"
               type="date"
               class="full-control"
-              size="large"
+              size=""
               value-format="YYYY-MM-DD"
               placeholder="年 / 月 / 日"
             />
+          </el-form-item>
+          <el-form-item label="启用状态">
+            <div class="switch-line">
+              <el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" />
+              <span>{{ form.enabled === 1 ? '已启用' : '已停用' }}</span>
+            </div>
           </el-form-item>
         </div>
       </el-form>
 
       <template #footer>
-        <el-button size="large" @click="formVisible = false">取消</el-button>
-        <el-button type="primary" class="btn-blue" size="large" :loading="submitting" @click="handleSubmit">保存</el-button>
+        <el-button size="" @click="formVisible = false">取消</el-button>
+        <el-button type="primary" class="btn-blue" size="" :loading="submitting" @click="handleSubmit">保存</el-button>
       </template>
     </el-dialog>
 
@@ -404,7 +405,7 @@ onMounted(() => {
         <p class="preview-meta">有效期：{{ preview.startDate || '-' }} 至 {{ preview.endDate || '-' }}</p>
       </div>
       <template #footer>
-        <el-button size="large" @click="previewVisible = false">关闭</el-button>
+        <el-button size="" @click="previewVisible = false">关闭</el-button>
       </template>
     </el-dialog>
   </div>
@@ -434,12 +435,7 @@ onMounted(() => {
   color: #9ca3af;
 }
 
-.panel {
-  background: #fff;
-  border: 1px solid #eef0f4;
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05);
-}
+
 
 .btn-blue {
   border-radius: 9px;

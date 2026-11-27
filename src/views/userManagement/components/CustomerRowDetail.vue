@@ -19,7 +19,7 @@ import {
   getPatientServiceRelationsById,
   getEscortQuotaRecordsById
 } from '../../../api/index.js'
-import { HEALTH_STATUS_TAG_TYPE, displayText, formatTime, toPage } from '../utils.js'
+import { HEALTH_STATUS_TAG_TYPE, displayText, formatTime, toPage } from '../../../utils/index.js'
 
 const props = defineProps({
   record: { type: Object, default: () => ({}) }
@@ -172,8 +172,8 @@ const onFooter = (action) => emit(action.key, patient.value)
         <el-icon><UserFilled /></el-icon>
         基础信息
       </h3>
-      <el-row :gutter="16" class="base-grid">
-        <el-col v-for="item in baseInfo" :key="item.key" :span="12">
+      <el-row :gutter="10" class="base-grid">
+        <el-col v-for="item in baseInfo" :key="item.key" :span="6">
           <div class="info-item">
             <span class="info-label">{{ item.label }}</span>
             <template v-if="item.key === 'health'">
@@ -187,7 +187,7 @@ const onFooter = (action) => emit(action.key, patient.value)
       </el-row>
     </section>
 
-    <section class="detail-card risk-card" v-loading="loading.risk">
+    <!-- <section class="detail-card risk-card" v-loading="loading.risk">
       <div class="risk-head">
         <el-icon class="risk-heart"><WarningFilled /></el-icon>
         <el-tag type="danger" effect="light" size="small">异常</el-tag>
@@ -199,12 +199,13 @@ const onFooter = (action) => emit(action.key, patient.value)
           <span class="metric-value" :class="{ 'metric-empty': metric.value === '-' }">{{ metric.value }}</span>
         </div>
       </div>
-    </section>
+    </section> -->
 
     <section class="detail-card service-card" v-loading="loading.service || loading.communication">
       <el-row :gutter="16">
-        <el-col :span="14">
-          <h3 class="section-title">
+        <el-col :span="12">
+          <div class="chat-panel">
+ <h3 class="section-title">
             <el-icon><Service /></el-icon>
             服务与沟通概况
           </h3>
@@ -234,8 +235,10 @@ const onFooter = (action) => emit(action.key, patient.value)
               </el-button>
             </li>
           </ul>
+          </div>
+         
         </el-col>
-        <el-col :span="10">
+        <el-col :span="12">
           <div class="chat-panel">
             <div class="chat-head">
               <span class="chat-title">
@@ -312,7 +315,7 @@ const onFooter = (action) => emit(action.key, patient.value)
 }
 
 .info-label {
-  flex: 0 0 88px;
+  flex: 0 0 60px;
   color: #6b7280;
 }
 

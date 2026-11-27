@@ -3,7 +3,7 @@ import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh, Edit, Key, CopyDocument, Delete, Lock } from '@element-plus/icons-vue'
 import { getRolePage, updateRoleStatusById, deleteRoleById } from '../../api/index.js'
-import { MISSING_TEXT, isMissing, TERMINAL_TEXT, DATA_SCOPE_TEXT, formatTime } from './utils.js'
+import { MISSING_TEXT, isMissing, TERMINAL_TEXT, DATA_SCOPE_TEXT, formatTime } from '../../utils/index.js'
 import RoleEditDrawer from './components/RoleEditDrawer.vue'
 
 // 筛选条件（服务端分页，参数透传）
@@ -202,15 +202,22 @@ onBeforeUnmount(() => {
         <h1>角色管理</h1>
         <p>管理角色权限、数据范围和关联账号。</p>
       </div>
-      <el-button class="create-btn" :icon="Plus" @click="openDrawer('create')">新增角色</el-button>
+       <el-button type="primary" size="" @click="openDrawer('create')">
+        <el-icon>
+          <Plus />
+        </el-icon>
+        新增角色
+      </el-button>
+      <!-- <el-button class="create-btn" :icon="Plus" @click="openDrawer('create')">新增角色</el-button> -->
     </div>
 
     <div class="panel filter-card">
       <div class="filter-row">
+        <div>
         <el-input
           v-model="query.keyword"
           class="search-input"
-          size="large"
+          size=""
           clearable
           placeholder="搜索角色名称或角色编码"
           @input="onKeywordInput"
@@ -223,7 +230,7 @@ onBeforeUnmount(() => {
         <el-select
           v-model="query.terminal"
           class="filter-select"
-          size="large"
+          size=""
           clearable
           placeholder="全部适用端"
           @change="onFilterChange"
@@ -235,7 +242,7 @@ onBeforeUnmount(() => {
         <el-select
           v-model="query.status"
           class="filter-select"
-          size="large"
+          size=""
           clearable
           placeholder="全部状态"
           @change="onFilterChange"
@@ -243,7 +250,12 @@ onBeforeUnmount(() => {
           <el-option label="启用" :value="1" />
           <el-option label="停用" :value="0" />
         </el-select>
-        <el-button size="large" :icon="Refresh" @click="handleReset">重置</el-button>
+        </div>
+<div>
+          <el-button type="primary" size="" @click="handleSearch">查询</el-button>
+
+        <el-button size="" :icon="Refresh" @click="handleReset">重置</el-button>
+    </div>
       </div>
     </div>
 
@@ -321,20 +333,24 @@ onBeforeUnmount(() => {
 
         <el-table-column label="更新时间" min-width="150">
           <template #default="{ row }">
-            <span v-if="formatTime(row.updateTime)">{{ formatTime(row.updateTime) }}</span>
+            <span v-if="!isMissing(row.updateTime)">{{ formatTime(row.updateTime) }}</span>
             <span v-else class="missing">{{ MISSING_TEXT }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="300" fixed="right">
+        <el-table-column label="操作" width="300" fixed="right" label-class-name="operation-header-cell">
           <template #default="{ row }">
             <div class="op-cell">
               <el-button link type="primary" :icon="Edit" @click="openDrawer('edit', row)">编辑</el-button>
               <el-button link type="primary" :icon="Key" @click="openDrawer('edit', row, 'permission')">权限配置</el-button>
               <el-button link type="primary" :icon="CopyDocument" @click="openDrawer('copy', row)">复制</el-button>
-              <el-button link @click="toggleStatus(row)">
-                {{ Number(row.status) === 1 ? '停用' : '启用' }}
-              </el-button>
+              <el-switch
+                :model-value="Number(row.status) === 1"
+                inline-prompt
+                active-text="启"
+                inactive-text="停"
+                @change="toggleStatus(row)"
+              />
               <el-tooltip
                 v-if="hasLinkedAccounts(row)"
                 content="存在关联账号"
@@ -431,27 +447,27 @@ onBeforeUnmount(() => {
   color: #fff;
 }
 
-.panel {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 16px;
-}
+
 
 .filter-row {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.filter-row>div{
+  display: flex;
   align-items: center;
   gap: 10px;
 }
 
 .search-input {
-  width: 420px;
+  width: 250px;
   max-width: 100%;
 }
 
 .filter-select {
-  width: 180px;
+  width: 150px;
 }
 
 .table-card {
@@ -559,6 +575,10 @@ onBeforeUnmount(() => {
   margin-left: 0;
 }
 
+.role-table :deep(.operation-header-cell) {
+  background-color: #f8fafc !important;
+}
+
 .delete-wrap {
   display: inline-flex;
 }
@@ -585,5 +605,33 @@ onBeforeUnmount(() => {
   .filter-select {
     width: 100%;
   }
+}
+.filter-card {
+  margin-top: 20px;
+  padding: 20px ;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-row>div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  width: 250px;
+  max-width: 100%;
+}
+
+.filter-select {
+  width: 150px;
 }
 </style>

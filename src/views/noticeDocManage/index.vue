@@ -107,7 +107,7 @@ async function saveEdit() {
 }
 
 /* ============================ 停用 ============================ */
-// 两份登录协议均为小程序登录必填，不允许停用；文档也未提供独立启停端点。
+
 function onToggleEnabled(row) {
   ElMessage.error('用户服务协议和隐私政策均为小程序登录必填，不能停用')
 }
@@ -167,10 +167,11 @@ onMounted(fetchList)
             <el-button size="small" @click="onEdit(row)">
               <el-icon><EditPen /></el-icon>编辑
             </el-button>
-            <el-tag size="small" type="success" effect="plain" round>登录必需</el-tag>
-            <el-button size="small"  @click="onToggleEnabled(row)">
+             <el-button size="small"  @click="onToggleEnabled(row)">
               {{ row.enabled ? '停用' : '启用' }}
             </el-button>
+            <el-tag size="small" type="success" effect="plain" round>登录必需</el-tag>
+           
           </div>
         </div>
 
@@ -191,7 +192,7 @@ onMounted(fetchList)
           <img class="login-img" :src="loginImg" alt="小程序登录页效果" />
         </div>
 
-        <el-alert type="info" :closable="false" show-icon class="preview-tip">
+        <el-alert type="primary" :closable="false"  class="preview-tip">
           当前两份协议均为登录必需。修改内容会自动生成新版本；用户未勾选时，“登录 / 注册”按钮保持禁用。
         </el-alert>
       </div>
@@ -202,12 +203,12 @@ onMounted(fetchList)
       <template #header>
         <div class="dialog-heading">
           <h3>{{ previewTitle }}</h3>
-          <p>小程序登录 · v{{ previewRow?.version || '-' }} · 更新于 {{ formatTime(previewRow?.updateTime) }}</p>
+          <p>小程序登录 · {{ previewRow?.version || '-' }} · 更新于 {{ formatTime(previewRow?.updateTime) }}</p>
         </div>
       </template>
       <div class="preview-content" v-html="previewContent"></div>
       <template #footer>
-        <el-button @click="previewVisible = false">关闭</el-button>
+        <el-button @click="previewVisible = false" class="mr-10">关闭</el-button>
         <el-button type="primary" @click="previewToEdit">
           <el-icon><EditPen /></el-icon>编辑内容
         </el-button>
@@ -239,7 +240,7 @@ onMounted(fetchList)
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="editVisible = false">取消</el-button>
+        <el-button @click="editVisible = false" class="mr-10">取消</el-button>
         <el-button type="primary" @click="saveEdit">
           <el-icon><EditPen /></el-icon>保存修改
         </el-button>
@@ -300,7 +301,7 @@ onMounted(fetchList)
 .meta-row {
   display: flex;
   justify-content: space-between;
-  gap: 20px;
+  gap: 10px;
   margin-top: 18px;
   padding: 14px 16px;
   background: #f7f8fa;
@@ -308,7 +309,7 @@ onMounted(fetchList)
 }
 .meta-item { display: flex; flex-direction: column; gap: 5px; }
 .meta-label { font-size: 12px; color: #9ca3af; }
-.meta-value { font-size: 13px; font-weight: 600; color: #374151; }
+.meta-value { font-size: 12px;  color: #374151; }
 
 .card-actions {
   display: flex;

@@ -33,6 +33,12 @@ function stringifyIdArray(ids) {
   return (Array.isArray(ids) ? ids : []).map((value) => String(value))
 }
 
+/** 后端排序接口要求 ArrayList<Long>；这里输出数字 JSON token，但不经过 JS Number，避免雪花 ID 精度丢失。 */
+function buildLongIdSortBody(data) {
+  const ids = stringifyIdArray(data.ids).filter((id) => /^\d+$/.test(id))
+  return `{"position":${JSON.stringify(data.position)},"ids":[${ids.join(',')}]}`
+}
+
 /* -------------------------------------------------------------------------- */
 /*  概览与公告（/app/overview、/app/notices/*）                                 */
 /* -------------------------------------------------------------------------- */
@@ -125,12 +131,11 @@ export function updateAppNoticeStatusById(id, status) {
  * 路径：PUT /app/notices/sort
  * @param {Object} data 排序请求（NoticeSortRequest，请求体必填）
  * @param {string} data.position 展位标识，HOME/DOCTOR/MINI_PROGRAM/PATIENT
- * @param {Array<string>} data.ids 按目标顺序排列的公告 ID 数组，元素为雪花 ID 字符串
+ * @param {Array<string>} data.ids 按目标顺序排列的公告 ID 数组，元素为雪花 ID 字符串；请求体中序列化为 Long 数字数组
  * @returns {Promise<null>} ApiResponse 的 data，通常为空，成功看 code=0
  */
 export function sortAppNotices(data) {
-  const payload = { position: data.position, ids: stringifyIdArray(data.ids) }
-  return http.put('/app/notices/sort', payload)
+  return http.put('/app/notices/sort', undefined, { rawBody: buildLongIdSortBody(data) })
 }
 
 /* -------------------------------------------------------------------------- */
@@ -153,12 +158,11 @@ export function updateAppBannerStatusById(id, status) {
  * 路径：PUT /app/banners/sort
  * @param {Object} data 排序请求（BannerSortRequest，请求体必填）
  * @param {string} data.position 展位标识，HOME/HEALTH/DOCTOR/SERVICE
- * @param {Array<string>} data.ids 按目标顺序排列的 Banner ID 数组，元素为雪花 ID 字符串
+ * @param {Array<string>} data.ids 按目标顺序排列的 Banner ID 数组，元素为雪花 ID 字符串；请求体中序列化为 Long 数字数组
  * @returns {Promise<null>} ApiResponse 的 data，通常为空，成功看 code=0
  */
 export function sortAppBanners(data) {
-  const payload = { position: data.position, ids: stringifyIdArray(data.ids) }
-  return http.put('/app/banners/sort', payload)
+  return http.put('/app/banners/sort', undefined, { rawBody: buildLongIdSortBody(data) })
 }
 
 /* -------------------------------------------------------------------------- */

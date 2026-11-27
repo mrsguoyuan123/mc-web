@@ -135,9 +135,13 @@ const openDetail = (row) => {
 const detailWorkload = computed(() => workloadOf(detailRow.value) || {})
 
 // 服务用户：跳转用户管理仓
-const goUserManagement = () => {
-  detailVisible.value = false
-  router.push('/userManagement')
+const goUserManagement = async (row) => {
+  console.log(row)
+  const id = row.id
+  router.push({
+    path: '/userManagement',
+    query: { id: id }
+  })
 }
 
 onMounted(() => {
@@ -156,28 +160,27 @@ onMounted(() => {
     <!-- 筛选条件 -->
     <div class="panel filter-card">
       <div class="filter-row">
-        <el-input
-          v-model="keyword"
-          class="search-input"
-          size="large"
-          clearable
-          placeholder="搜索客服姓名、用户名或手机号"
-          @keyup.enter="handleSearch"
-          @clear="handleSearch"
-        >
-          <template #prefix>
-            <el-icon><Search /></el-icon>
-          </template>
-        </el-input>
-        <el-select v-model="filterLevel" class="filter-select" size="large" clearable placeholder="全部等级">
-          <el-option v-for="level in LEVEL_OPTIONS" :key="level" :label="level" :value="level" />
-        </el-select>
-        <el-select v-model="filterStatus" class="filter-select" size="large" clearable placeholder="全部状态">
-          <el-option label="启用" :value="1" />
-          <el-option label="停用" :value="0" />
-        </el-select>
-        <el-button type="primary" size="large" @click="handleSearch">查询</el-button>
-        <el-button size="large" @click="handleReset">重置</el-button>
+        <div>
+          <el-input v-model="keyword" class="search-input" size="" clearable placeholder="搜索客服姓名、用户名或手机号"
+            @keyup.enter="handleSearch" @clear="handleSearch">
+            <template #prefix>
+              <el-icon>
+                <Search />
+              </el-icon>
+            </template>
+          </el-input>
+          <el-select v-model="filterLevel" class="filter-select" size="" clearable placeholder="全部等级">
+            <el-option v-for="level in LEVEL_OPTIONS" :key="level" :label="level" :value="level" />
+          </el-select>
+          <el-select v-model="filterStatus" class="filter-select" size="" clearable placeholder="全部状态">
+            <el-option label="启用" :value="1" />
+            <el-option label="停用" :value="0" />
+          </el-select>
+        </div>
+        <div>
+          <el-button type="primary" size="" @click="handleSearch">查询</el-button>
+          <el-button size="" @click="handleReset">重置</el-button>
+        </div>
       </div>
     </div>
 
@@ -187,14 +190,15 @@ onMounted(() => {
         <el-table-column label="姓名" min-width="150">
           <template #default="{ row }">
             <div class="name-cell">
-              <el-avatar :size="32">{{ (row.name || '-').slice(0, 1) }}</el-avatar>
+              <!-- <el-avatar :size="32">{{ (row.name || '-').slice(0, 1) }}</el-avatar> -->
               <span class="name-text">{{ row.name }}</span>
             </div>
           </template>
         </el-table-column>
         <el-table-column label="客服等级" min-width="120">
           <template #default="{ row }">
-            <el-tag v-if="row.levelOrArea" type="primary" effect="plain" round size="small">{{ row.levelOrArea }}</el-tag>
+            <el-tag v-if="row.levelOrArea" type="primary" effect="plain" round size="small">{{ row.levelOrArea
+              }}</el-tag>
             <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
@@ -210,17 +214,17 @@ onMounted(() => {
         </el-table-column>
         <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
-            <el-switch
-              :model-value="Number(row.status) === 1"
-              :loading="statusLoadingId === String(row.id)"
-              @change="onStatusChange(row)"
-            />
+            <span class="status-cell" :class="Number(row.status) === 1 ? 'is-on' : 'is-off'">
+              <i class="status-dot"></i>{{ Number(row.status) === 1 ? '启用' : '停用' }}
+            </span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link :icon="View" @click="openDetail(row)">详情</el-button>
-            <el-button type="primary" link :icon="User" @click="goUserManagement">服务用户</el-button>
+            <el-button type="primary" link :icon="User" @click="goUserManagement(row)">服务用户</el-button>
+            <el-switch class="ml-10" :model-value="Number(row.status) === 1"
+              :loading="statusLoadingId === String(row.id)" @change="onStatusChange(row)" />
           </template>
         </el-table-column>
         <template #empty>
@@ -228,17 +232,9 @@ onMounted(() => {
         </template>
       </el-table>
 
-      <el-pagination
-        class="list-pager"
-        background
-        :current-page="page"
-        :page-size="pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, prev, pager, next, sizes"
-        @current-change="handlePageChange"
-        @size-change="handleSizeChange"
-      />
+      <el-pagination class="list-pager" background :current-page="page" :page-size="pageSize"
+        :page-sizes="[10, 20, 50, 100]" :total="total" layout="total, prev, pager, next, sizes"
+        @current-change="handlePageChange" @size-change="handleSizeChange" />
     </div>
     <!-- 客服详情抽屉 -->
     <el-drawer v-model="detailVisible" size="46%" class="cs-drawer" :with-header="false">
@@ -263,22 +259,12 @@ onMounted(() => {
           </el-descriptions>
         </div>
 
-        <el-alert
-          class="drawer-tip"
-          type="primary"
-          :closable="false"
-          show-icon
-          title="停用客服前应完成负责用户交接，避免用户后续消息无人处理。"
-        />
+        <el-alert class="drawer-tip" type="primary" :closable="false" show-icon title="停用客服前应完成负责用户交接，避免用户后续消息无人处理。" />
 
         <div class="drawer-footer">
-          <el-button type="primary" size="large" :icon="User" @click="goUserManagement">查看负责用户</el-button>
-          <el-button
-            size="large"
-            :type="Number(detailRow.status) === 1 ? 'danger' : 'primary'"
-            :loading="statusLoadingId === String(detailRow.id)"
-            @click="onStatusChange(detailRow)"
-          >
+          <el-button type="primary" size="" :icon="User" @click="goUserManagement(detailRow)">查看负责用户</el-button>
+          <el-button size="" :type="Number(detailRow.status) === 1 ? 'danger' : 'primary'"
+            :loading="statusLoadingId === String(detailRow.id)" @click="onStatusChange(detailRow)">
             {{ Number(detailRow.status) === 1 ? '停用账号' : '启用账号' }}
           </el-button>
         </div>
@@ -305,31 +291,34 @@ onMounted(() => {
   color: #9ca3af;
 }
 
-.panel {
-  background: #fff;
-  border: 1px solid #eef0f4;
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05);
-}
 
 .filter-card {
-  margin-top: 22px;
-  padding: 20px 22px;
+  margin-top: 20px;
+  padding: 20px ;
 }
 
 .filter-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-row>div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .search-input {
-  width: 320px;
+  width: 250px;
   max-width: 100%;
 }
 
 .filter-select {
-  width: 180px;
+  width: 150px;
 }
 
 .table-card {
@@ -344,7 +333,7 @@ onMounted(() => {
 }
 
 .name-text {
-  font-weight: 600;
+  /* font-weight: 600; */
 }
 
 .link-text {
@@ -405,6 +394,35 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+.status-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-cell.is-on {
+  color: #059669;
+}
+
+.status-cell.is-on .status-dot {
+  background: #10b981;
+}
+
+.status-cell.is-off {
+  color: #9ca3af;
+}
+
+.status-cell.is-off .status-dot {
+  background: #d1d5db;
 }
 
 @media (max-width: 768px) {

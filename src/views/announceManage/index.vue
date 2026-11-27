@@ -37,6 +37,12 @@ const departmentOptions = ref([])
 const departmentNameMap = computed(() =>
   Object.fromEntries(departmentOptions.value.map((item) => [String(item.id), item.name]))
 )
+const normalizeId = (value) => (value === null || value === undefined ? '' : String(value))
+const getDepartmentName = (row) => {
+  const departmentId = normalizeId(row?.departmentId)
+  if (!departmentId) return '全院通用'
+  return departmentNameMap.value[departmentId] || row?.departmentName || row?.department?.name || row?.deptName || '全院通用'
+}
 
 // 顶部统计（拉取较大一页后在前端汇总）
 const stats = ref([
@@ -116,7 +122,10 @@ const move = async (row, dir) => {
   reordered.splice(targetIdx, 0, current)
   reordered.forEach((item, i) => { item.sortNo = i + 1 })
   try {
-    await sortAppNotices({ position: row.position, ids: reordered.map((item) => String(item.id)) })
+    const ids = reordered
+      .map((item) => normalizeId(item.id))
+      .filter(Boolean)
+    await sortAppNotices({ position: row.position, ids })
     ElMessage.success('排序已更新')
     fetchList()
   } catch (err) {
@@ -178,10 +187,20 @@ const openAdd = () => {
 const openEdit = (row) => {
   resetForm()
   isEdit.value = true
-  form.id = String(row.id)
+  form.id = normalizeId(row.id)
   form.title = row.title || ''
   form.position = row.position || ''
-  form.departmentId = row.departmentId ? String(row.departmentId) : ''
+  const departmentId = normalizeId(row.departmentId)
+  form.departmentId = departmentId
+  if (departmentId && !departmentNameMap.value[departmentId]) {
+    const departmentName = row.departmentName || row.department?.name || row.deptName
+    if (departmentName) {
+      const exists = departmentOptions.value.some((item) => normalizeId(item.id) === departmentId)
+      if (!exists) {
+        departmentOptions.value.push({ id: departmentId, name: departmentName })
+      }
+    }
+  }
   form.content = row.content || ''
   form.publishDate = row.publishDate || ''
   form.coverUrl = row.coverUrl || ''
@@ -196,7 +215,7 @@ const buildPayload = () => ({
   title: form.title,
   type: 'NOTICE',
   position: form.position || undefined,
-  departmentId: form.departmentId ? String(form.departmentId) : undefined,
+  departmentId: form.departmentId ? normalizeId(form.departmentId) : undefined,
   content: form.content || undefined,
   coverUrl: form.coverUrl || undefined,
   sortNo: form.sortNo === undefined || form.sortNo === '' ? undefined : Number(form.sortNo),
@@ -254,7 +273,7 @@ const handleDelete = (row) => {
     } catch (err) {
       ElMessage.error(err?.message || '删除失败')
     }
-  }).catch(() => {})
+  }).catch(() => { })
 }
 
 onMounted(() => {
@@ -270,8 +289,10 @@ onMounted(() => {
         <h1>公告管理</h1>
         <p>管理告知书公告的展示位置和排序</p>
       </div>
-      <el-button type="primary" class="btn-blue" size="large" @click="openAdd">
-        <el-icon><Plus /></el-icon>新增公告
+      <el-button type="primary" class="btn-blue" size="" @click="openAdd">
+        <el-icon>
+          <Plus />
+        </el-icon>新增公告
       </el-button>
     </div>
 
@@ -286,249 +307,198 @@ onMounted(() => {
     <!-- 筛选区 -->
     <div class="panel filter-card">
       <div class="filter-row">
-        <el-input
-          v-model="keyword"
-          class="search-input"
-          size="large"
-          clearable
-          placeholder="搜索告知书标题、内容或科室..."
-          @keyup.enter="handleSearch"
-          @clear="handleSearch"
-        >
-          <template #prefix><el-icon><Search /></el-icon></template>
+        <div>
+        <el-input v-model="keyword" class="search-input" size="" clearable placeholder="搜索告知书标题、内容或科室..."
+          @keyup.enter="handleSearch" @clear="handleSearch">
+          <template #prefix><el-icon>
+              <Search />
+            </el-icon></template>
         </el-input>
-        <el-select
-          v-model="filterPosition"
-          class="filter-select"
-          size="large"
-          clearable
-          placeholder="全部展示位置"
-          @change="handleSearch"
-        >
-          <el-option
-            v-for="item in POSITION_OPTIONS"
-            :key="item.value"
-            :label="item.label"
-            :value="item.value"
-          />
+        <el-select v-model="filterPosition" class="filter-select" size="" clearable placeholder="全部展示位置"
+          @change="handleSearch">
+          <el-option v-for="item in POSITION_OPTIONS" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
-        <el-select
-          v-model="filterDepartmentId"
-          class="filter-select"
-          size="large"
-          clearable
-          placeholder="全部科室"
-          @change="handleSearch"
-        >
-          <el-option
-            v-for="dept in departmentOptions"
-            :key="dept.id"
-            :label="dept.name"
-            :value="dept.id"
-          />
+        <el-select v-model="filterDepartmentId" class="filter-select" size="" clearable placeholder="全部科室"
+          @change="handleSearch">
+          <el-option v-for="dept in departmentOptions" :key="String(dept.id)" :label="dept.name" :value="String(dept.id)" />
         </el-select>
-        <el-button type="primary" size="large" @click="handleSearch">查询</el-button>
-        <el-button size="large" @click="handleReset">重置</el-button>
+      </div>
+      <div>
+        <el-button type="primary" size="" @click="handleSearch">查询</el-button>
+        <el-button size="" @click="handleReset">重置</el-button>
       </div>
     </div>
+  </div>
 
-    <!-- 公告列表 -->
-    <div class="panel table-card">
-      <div class="table-head">
-        <h3>公告列表</h3>
-        <span class="head-sub">共 {{ total }} 条，可通过上下箭头调整顺序</span>
-      </div>
-      <el-table v-loading="loading" :data="tableData" row-key="id" stripe>
-        <el-table-column label="排序" width="86" align="center">
-          <template #default="{ row, $index }">
-            <div class="sort-cell">
-              <el-icon
-                class="sort-arrow"
-                :class="{ disabled: $index === 0 }"
-                @click="move(row, -1)"
-              ><Top /></el-icon>
-              <el-icon
-                class="sort-arrow"
-                :class="{ disabled: $index === tableData.length - 1 }"
-                @click="move(row, 1)"
-              ><Bottom /></el-icon>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="告知书标题" prop="title" min-width="220">
-          <template #default="{ row }">
-            <span class="title-cell"><el-icon><Document /></el-icon>{{ row.title }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="科室" min-width="110">
-          <template #default="{ row }">
-            <span class="dept-tag">{{ departmentNameMap[String(row.departmentId)] || '全院通用' }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="展示位置" min-width="120">
-          <template #default="{ row }">
-            <span class="pos-tag">{{ positionLabel(row.position) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="发布日期" prop="publishDate" min-width="120">
-          <template #default="{ row }">{{ row.publishDate || '-' }}</template>
-        </el-table-column>
-        <el-table-column label="状态" min-width="90">
-          <template #default="{ row }">
-            <el-switch
-              :model-value="Number(row.enabled) === 1"
-              :loading="statusLoadingId === String(row.id)"
-              @change="onStatusChange(row)"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="140" fixed="right" align="center">
-          <template #default="{ row }">
-            <el-tooltip content="查看" placement="top">
-              <el-button type="primary" link @click="openDetail(row)"><el-icon><View /></el-icon></el-button>
-            </el-tooltip>
-            <el-tooltip content="编辑" placement="top">
-              <el-button type="primary" link @click="openEdit(row)"><el-icon><Edit /></el-icon></el-button>
-            </el-tooltip>
-            <el-tooltip content="删除" placement="top">
-              <el-button type="danger" link @click="handleDelete(row)"><el-icon><Delete /></el-icon></el-button>
-            </el-tooltip>
-          </template>
-        </el-table-column>
-        <template #empty>
-          <el-empty description="暂无符合条件的公告" :image-size="90" />
+  <!-- 公告列表 -->
+  <div class="panel table-card">
+    <div class="table-head">
+      <h3>公告列表</h3>
+      <span class="head-sub">共 {{ total }} 条，可通过上下箭头调整顺序</span>
+    </div>
+    <el-table v-loading="loading" :data="tableData" row-key="id" stripe>
+      <el-table-column label="排序" width="86" align="center">
+        <template #default="{ row, $index }">
+          <div class="sort-cell">
+            <el-icon class="sort-arrow" :class="{ disabled: $index === 0 }" @click="move(row, -1)">
+              <Top />
+            </el-icon>
+            <el-icon class="sort-arrow" :class="{ disabled: $index === tableData.length - 1 }" @click="move(row, 1)">
+              <Bottom />
+            </el-icon>
+          </div>
         </template>
-      </el-table>
-      <el-pagination
-        class="list-pager"
-        background
-        :current-page="page"
-        :page-size="pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, prev, pager, next, sizes"
-        @current-change="handlePageChange"
-        @size-change="handleSizeChange"
-      />
-    </div>
-    <!-- 新增 / 编辑弹窗 -->
-    <el-dialog v-model="formVisible" :width="640" class="ann-dialog" :title="isEdit ? '编辑公告' : '新增公告'">
-      <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
-        <el-form-item label="告知书标题" prop="title">
-          <el-input v-model="form.title" size="large" placeholder="例如：手术麻醉知情同意书" />
-        </el-form-item>
-        <div class="form-grid">
-          <el-form-item label="展示位置" prop="position">
-            <el-select v-model="form.position" class="full-control" size="large" placeholder="请选择展示位置">
-              <el-option
-                v-for="item in POSITION_OPTIONS"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="所属科室">
-            <el-select
-              v-model="form.departmentId"
-              class="full-control"
-              size="large"
-              clearable
-              filterable
-              placeholder="不选则全院通用"
-            >
-              <el-option
-                v-for="dept in departmentOptions"
-                :key="dept.id"
-                :label="dept.name"
-                :value="dept.id"
-              />
-            </el-select>
-          </el-form-item>
-        </div>
-        <el-form-item label="告知书内容" prop="content">
-          <el-input
-            v-model="form.content"
-            type="textarea"
-            :rows="4"
-            resize="none"
-            placeholder="请输入告知书详细内容"
-          />
-        </el-form-item>
-        <el-form-item label="发布日期" prop="publishDate">
-          <el-date-picker
-            v-model="form.publishDate"
-            type="date"
-            class="full-control"
-            size="large"
-            value-format="YYYY-MM-DD"
-            placeholder="年 / 月 / 日"
-          />
-        </el-form-item>
-        <el-form-item label="配图链接（选填）">
-          <el-input v-model="form.coverUrl" size="large" placeholder="https://example.com/image.jpg" />
-        </el-form-item>
-        <el-image v-if="form.coverUrl" :src="form.coverUrl" fit="cover" class="form-preview">
-          <template #error><div class="img-fallback">图片加载失败</div></template>
-        </el-image>
-        <el-form-item label="排序号">
-          <el-input-number v-model="form.sortNo" :min="1" controls-position="right" class="full-control" placeholder="数字越小越靠前" />
-        </el-form-item>
-        <el-form-item>
-          <div class="switch-line">
-            <el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" />
-            <span>立即启用</span>
-          </div>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button size="large" @click="formVisible = false">取消</el-button>
-        <el-button type="primary" class="btn-blue" size="large" :loading="submitting" @click="handleSubmit">
-          {{ isEdit ? '保存修改' : '确认添加' }}
-        </el-button>
+      </el-table-column>
+      <el-table-column label="告知书标题" prop="title" min-width="220">
+        <template #default="{ row }">
+          <span class="title-cell"><el-icon>
+              <Document />
+            </el-icon>{{ row.title }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="科室" min-width="110">
+        <template #default="{ row }">
+          <span class="dept-tag">{{ getDepartmentName(row) }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="展示位置" min-width="120">
+        <template #default="{ row }">
+          <span class="pos-tag">{{ positionLabel(row.position) }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="发布日期" prop="publishDate" min-width="120">
+        <template #default="{ row }">{{ row.publishDate || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="状态" min-width="90">
+        <template #default="{ row }">
+          <el-switch :model-value="Number(row.enabled) === 1" :loading="statusLoadingId === String(row.id)"
+            @change="onStatusChange(row)" />
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="140" fixed="right" align="center">
+        <template #default="{ row }">
+          <el-tooltip content="查看" placement="top">
+            <el-button type="primary" link @click="openDetail(row)"><el-icon>
+                <View />
+              </el-icon></el-button>
+          </el-tooltip>
+          <el-tooltip content="编辑" placement="top">
+            <el-button type="primary" link @click="openEdit(row)"><el-icon>
+                <Edit />
+              </el-icon></el-button>
+          </el-tooltip>
+          <el-tooltip content="删除" placement="top">
+            <el-button type="danger" link @click="handleDelete(row)"><el-icon>
+                <Delete />
+              </el-icon></el-button>
+          </el-tooltip>
+        </template>
+      </el-table-column>
+      <template #empty>
+        <el-empty description="暂无符合条件的公告" :image-size="90" />
       </template>
-    </el-dialog>
-
-    <!-- 详情弹窗 -->
-    <el-dialog v-model="detailVisible" :width="680" class="ann-dialog detail-dialog" show-close>
-      <template #header>
-        <div class="detail-heading">
-          <el-icon class="detail-icon"><Document /></el-icon>
-          <span>{{ detail?.title }}</span>
-        </div>
-      </template>
-      <div v-if="detail" class="detail-body">
-        <el-image v-if="detail.coverUrl" :src="detail.coverUrl" fit="cover" class="detail-image">
-          <template #error><div class="img-fallback">图片加载失败</div></template>
-        </el-image>
-        <div class="detail-grid">
-          <div>
-            <div class="detail-label">科室</div>
-            <div class="detail-value">{{ departmentNameMap[String(detail.departmentId)] || '全院通用' }}</div>
-          </div>
-          <div>
-            <div class="detail-label">展示位置</div>
-            <div class="detail-value">{{ positionLabel(detail.position) }}</div>
-          </div>
-          <div>
-            <div class="detail-label">发布日期</div>
-            <div class="detail-value">{{ detail.publishDate || '-' }}</div>
-          </div>
-          <div>
-            <div class="detail-label">状态</div>
-            <span class="status-tag" :class="Number(detail.enabled) === 1 ? 'on' : 'off'">
-              {{ Number(detail.enabled) === 1 ? '已启用' : '已停用' }}
-            </span>
-          </div>
-        </div>
-        <div class="detail-label">告知书内容</div>
-        <div class="detail-content">{{ detail.content }}</div>
+    </el-table>
+    <el-pagination class="list-pager" background :current-page="page" :page-size="pageSize"
+      :page-sizes="[10, 20, 50, 100]" :total="total" layout="total, prev, pager, next, sizes"
+      @current-change="handlePageChange" @size-change="handleSizeChange" />
+  </div>
+  <!-- 新增 / 编辑弹窗 -->
+  <el-dialog v-model="formVisible" :width="640" class="ann-dialog" :title="isEdit ? '编辑公告' : '新增公告'">
+    <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
+      <el-form-item label="告知书标题" prop="title">
+        <el-input v-model="form.title" size="" placeholder="例如：手术麻醉知情同意书" />
+      </el-form-item>
+      <div class="form-grid">
+        <el-form-item label="展示位置" prop="position">
+          <el-select v-model="form.position" class="full-control" size="" placeholder="请选择展示位置">
+            <el-option v-for="item in POSITION_OPTIONS" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="所属科室">
+          <el-select v-model="form.departmentId" class="full-control" size="" clearable filterable
+            placeholder="不选则全院通用">
+            <el-option v-for="dept in departmentOptions" :key="String(dept.id)" :label="dept.name" :value="String(dept.id)" />
+          </el-select>
+        </el-form-item>
       </div>
-      <template #footer>
-        <el-button size="large" @click="detailVisible = false">关闭</el-button>
-        <el-button type="primary" class="btn-blue" size="large" @click="openEdit(detail)">编辑</el-button>
-      </template>
-    </el-dialog>
+      <el-form-item label="告知书内容" prop="content">
+        <el-input v-model="form.content" type="textarea" :rows="4" resize="none" placeholder="请输入告知书详细内容" />
+      </el-form-item>
+      <el-form-item label="发布日期" prop="publishDate">
+        <el-date-picker v-model="form.publishDate" type="date" class="full-control" size="" value-format="YYYY-MM-DD"
+          placeholder="年 / 月 / 日" />
+      </el-form-item>
+      <el-form-item label="配图链接（选填）">
+        <el-input v-model="form.coverUrl" size="" placeholder="https://example.com/image.jpg" />
+      </el-form-item>
+      <el-image v-if="form.coverUrl" :src="form.coverUrl" fit="cover" class="form-preview">
+        <template #error>
+          <div class="img-fallback">图片加载失败</div>
+        </template>
+      </el-image>
+      <el-form-item label="排序号">
+        <el-input-number v-model="form.sortNo" :min="1" controls-position="right" class="full-control"
+          placeholder="数字越小越靠前" />
+      </el-form-item>
+      <el-form-item>
+        <div class="switch-line">
+          <el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" />
+          <span>立即启用</span>
+        </div>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button size="" @click="formVisible = false">取消</el-button>
+      <el-button type="primary" class="btn-blue" size="" :loading="submitting" @click="handleSubmit">
+        {{ isEdit ? '保存修改' : '确认添加' }}
+      </el-button>
+    </template>
+  </el-dialog>
+
+  <!-- 详情弹窗 -->
+  <el-dialog v-model="detailVisible" :width="680" class="ann-dialog detail-dialog" show-close>
+    <template #header>
+      <div class="detail-heading">
+        <el-icon class="detail-icon">
+          <Document />
+        </el-icon>
+        <span>{{ detail?.title }}</span>
+      </div>
+    </template>
+    <div v-if="detail" class="detail-body">
+      <el-image v-if="detail.coverUrl" :src="detail.coverUrl" fit="cover" class="detail-image">
+        <template #error>
+          <div class="img-fallback">图片加载失败</div>
+        </template>
+      </el-image>
+      <div class="detail-grid">
+        <div>
+          <div class="detail-label">科室</div>
+          <div class="detail-value">{{ getDepartmentName(detail) }}</div>
+        </div>
+        <div>
+          <div class="detail-label">展示位置</div>
+          <div class="detail-value">{{ positionLabel(detail.position) }}</div>
+        </div>
+        <div>
+          <div class="detail-label">发布日期</div>
+          <div class="detail-value">{{ detail.publishDate || '-' }}</div>
+        </div>
+        <div>
+          <div class="detail-label">状态</div>
+          <span class="status-tag" :class="Number(detail.enabled) === 1 ? 'on' : 'off'">
+            {{ Number(detail.enabled) === 1 ? '已启用' : '已停用' }}
+          </span>
+        </div>
+      </div>
+      <div class="detail-label">告知书内容</div>
+      <div class="detail-content">{{ detail.content }}</div>
+    </div>
+    <template #footer>
+      <el-button size="" @click="detailVisible = false">关闭</el-button>
+      <el-button type="primary" class="btn-blue" size="" @click="openEdit(detail)">编辑</el-button>
+    </template>
+  </el-dialog>
   </div>
 </template>
 
@@ -556,12 +526,7 @@ onMounted(() => {
   color: #9ca3af;
 }
 
-.panel {
-  background: #fff;
-  border: 1px solid #eef0f4;
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05);
-}
+
 
 /* 蓝色主按钮 */
 .btn-blue {
@@ -602,18 +567,16 @@ onMounted(() => {
 }
 
 /* 筛选区 */
-.filter-card {
-  padding: 20px 22px;
-}
 
 .filter-row {
   display: flex;
   align-items: center;
   gap: 14px;
+  flex-wrap: wrap;
 }
 
 .search-input {
-  width: 320px;
+  width: 250px;
   max-width: 100%;
 }
 
@@ -795,12 +758,12 @@ onMounted(() => {
 }
 
 .status-tag.on {
-  background: rgba(220,252,231,0.5);
+  background: rgba(220, 252, 231, 0.5);
   color: #16a34a;
 }
 
 .status-tag.off {
-  background: rgba(243,244,246,0.5);
+  background: rgba(243, 244, 246, 0.5);
   color: #6b7280;
 }
 
@@ -814,7 +777,7 @@ onMounted(() => {
   color: #374151;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1000px) {
   .stats-grid {
     grid-template-columns: repeat(3, 1fr);
   }

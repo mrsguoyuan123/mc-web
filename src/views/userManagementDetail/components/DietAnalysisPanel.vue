@@ -4,7 +4,7 @@ import * as echarts from 'echarts'
 import { Picture } from '@element-plus/icons-vue'
 import { getPatientHealthSummaryById } from '../../../api/index.js'
 import { BASE_URL } from '../../../api/frontApikit.js'
-import { formatTime } from '../../userManagement/utils.js'
+import { formatTime } from '../../../utils/index.js'
 
 const props = defineProps({
   patientId: { type: [String, Number], default: '' }
@@ -443,13 +443,6 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 14px;
-}
-
-.panel-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 16px 18px;
 }
 
 .card-head {

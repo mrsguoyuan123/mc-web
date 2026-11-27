@@ -11,28 +11,36 @@ const collapsed = ref(false)
 const adminRoute = router.options.routes.find((item) => item.path === '/')
 
 const menuOrder = [
+  // 数据看板（管理员首页，对应侧边栏截图首项）
   '/dashboard',
+  // 医院端 / 科室端 / 驻点端角色首页（按角色过滤后在各自菜单内置顶）
+  '/hospitalManage/dashboard',
+  '/hospitalManage/departmentDashboard',
+  '/station/workbench',
+  '/station/doctorAdd',
+  // 机构管理
   '/hospital',
   '/department',
-  '/user',
+  // 用户管理仓
   '/userManagement',
+  // 医生管理仓
   '/doctorManage',
   '/doctorAudit',
+  // 人员管理
   '/staffManage',
-  '/roleManage',
+  '/roleManagement',
+  // 服务运营
   '/csManage',
   '/stationManage',
+  // 小程序管理
   '/templateManage',
   '/announceManage',
   '/bannerManage',
   '/noticeDocManage',
   '/userMessageNotice',
+  // 智能客服知识库 / 账户系统管理
   '/aiKnowledge',
   '/accountManage',
-  // 医院端角色菜单（hospital 角色可见，保持原顺序）
-  '/hospitalManage/dashboard',
-  '/hospitalManage/users',
-  '/hospitalManage/healthConsult',
   // 客服端角色菜单（service 角色可见，保持原顺序）
   '/serviceChatManage',
   '/servicePushManage',
@@ -251,7 +259,7 @@ const handleSwitchRole = async (roleItem) => {
               <el-avatar :size="34" class="user-avatar">{{ profile.avatar }}</el-avatar>
               <span class="user-meta">
                 
-                <el-text class="mx-1" style="font-weight: bold;">{{ auth.user.username  }}</el-text>
+                <el-text class="mx-1" style="font-weight: bold;">{{ auth.user?.username || profile.name }}</el-text>
                 
                 <el-text class="mx-1" size="small" type="info">{{ profile.label }}</el-text>
               </span>
@@ -259,7 +267,7 @@ const handleSwitchRole = async (roleItem) => {
             </div>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item disabled>用户：{{ auth.user.username }}</el-dropdown-item>
+                <el-dropdown-item disabled>用户：{{ auth.user?.username || profile.name }}</el-dropdown-item>
                 <el-dropdown-item disabled>姓名：{{ profile.name }}</el-dropdown-item>
                 <el-dropdown-item disabled>角色：{{ profile.label }}</el-dropdown-item>
                 <template v-if="switchableRoles.length > 1">

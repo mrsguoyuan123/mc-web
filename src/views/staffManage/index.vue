@@ -265,7 +265,7 @@ const handleResetPassword = (row) => {
     } catch (err) {
       ElMessage.error(err?.message || '密码重置失败')
     }
-  }).catch(() => {})
+  }).catch(() => { })
 }
 
 onMounted(() => {
@@ -274,7 +274,7 @@ onMounted(() => {
 })
 </script>
 
-﻿<template>
+<template>
   <div class="staff-page">
     <div class="page-header">
       <div>
@@ -286,42 +286,54 @@ onMounted(() => {
 
     <div class="panel filter-card">
       <div class="filter-row">
-        <el-input
-          v-model="keyword"
-          class="search-input"
-          placeholder="搜索员工姓名、用户名或手机号"
-          clearable
-          :prefix-icon="Search"
-          @keyup.enter="handleSearch"
-          @clear="handleSearch"
-        />
-        <el-select v-model="filterRoleId" class="filter-select" placeholder="全部权限角色" clearable @change="handleSearch">
-          <el-option v-for="role in roleOptions" :key="role.id" :label="role.name" :value="role.id" />
-        </el-select>
-        <el-select v-model="filterPersonType" class="filter-select" placeholder="全部人员类型" clearable @change="handleSearch">
-          <el-option v-for="item in PERSON_TYPE_FILTER" :key="item.value" :label="item.label" :value="item.value" />
-        </el-select>
-        <el-select v-model="filterStatus" class="filter-select" placeholder="全部状态" clearable @change="handleSearch">
-          <el-option label="启用" :value="1" />
-          <el-option label="停用" :value="0" />
-        </el-select>
-        <el-button :icon="RefreshLeft" @click="handleReset">重置</el-button>
+        <div>
+          <el-input v-model="keyword" class="search-input" placeholder="搜索员工姓名、用户名或手机号" clearable :prefix-icon="Search"
+            @keyup.enter="handleSearch" @clear="handleSearch" />
+          <el-select v-model="filterRoleId" class="filter-select" placeholder="全部权限角色" clearable @change="handleSearch">
+            <el-option v-for="role in roleOptions" :key="role.id" :label="role.name" :value="role.id" />
+          </el-select>
+          <el-select v-model="filterPersonType" class="filter-select" placeholder="全部人员类型" clearable
+            @change="handleSearch">
+            <el-option v-for="item in PERSON_TYPE_FILTER" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+          <el-select v-model="filterStatus" class="filter-select" placeholder="全部状态" clearable @change="handleSearch">
+            <el-option label="启用" :value="1" />
+            <el-option label="停用" :value="0" />
+          </el-select>
+        </div>
+        <div>
+
+          <el-button type="primary" size="" @click="handleSearch">查询</el-button>
+
+          <el-button :icon="RefreshLeft" @click="handleReset">重置</el-button>
+
+        </div>
       </div>
     </div>
 
     <div class="panel table-card">
+      <div class="flex-between table-top">
+        <div>
+          <span>员工账号</span>
+          <span class="ml-10 font-bold ">{{ total }}</span>
+        </div>
+        <div class="font-12 font-info">
+          权限角色决定菜单与接口，人员类型用于区分业务身份
+        </div>
+      </div>
       <el-table v-loading="loading" :data="tableData" style="width: 100%">
-        <el-table-column label="姓名" min-width="110">
+        <el-table-column label="姓名" min-width="130">
           <template #default="{ row }">
             <div style="display:flex;align-items:center;gap:8px">
-              <el-avatar :size="30">{{ (row.name || '-').slice(0, 1) }}</el-avatar>
-              <span style="font-weight:600">{{ row.name }}</span>
+              <!-- <el-avatar :size="30">{{ (row.name || '-').slice(0, 1) }}</el-avatar> -->
+              <span>{{ row.name }}</span>
             </div>
           </template>
         </el-table-column>
         <el-table-column label="权限角色" min-width="160">
           <template #default="{ row }">
-            <el-tag v-for="tag in roleTagsOf(row)" :key="tag" size="small" class="role-tag" type="primary">{{ tag }}</el-tag>
+            <el-tag v-for="tag in roleTagsOf(row)" :key="tag" size="small" class="role-tag" type="primary">{{ tag
+            }}</el-tag>
             <span v-if="roleTagsOf(row).length === 0" style="color:#94a3b8">-</span>
           </template>
         </el-table-column>
@@ -339,19 +351,16 @@ onMounted(() => {
         <el-table-column label="电话" prop="phone" min-width="130" />
         <el-table-column label="账号状态" min-width="120">
           <template #default="{ row }">
-            <el-switch
-              :model-value="Number(row.status) === 1"
-              :loading="statusLoadingId === String(row.id)"
-              @change="onStatusChange(row)"
-            />
+            <el-switch :model-value="Number(row.status) === 1" :loading="statusLoadingId === String(row.id)"
+              @change="onStatusChange(row)" />
             <span class="status-text" :class="Number(row.status) === 1 ? 'on' : 'off'">
               {{ STATUS_TEXT[Number(row.status)] || '-' }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="创建时间" min-width="170">
+        <!-- <el-table-column label="创建时间" min-width="170">
           <template #default="{ row }">{{ formatTime(row.joinDate || row.createTime) }}</template>
-        </el-table-column>
+        </el-table-column> -->
         <el-table-column label="操作" width="210" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link :icon="Edit" @click="openEdit(row)">编辑</el-button>
@@ -363,17 +372,9 @@ onMounted(() => {
         </template>
       </el-table>
 
-      <el-pagination
-        class="list-pager"
-        background
-        :current-page="page"
-        :page-size="pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, prev, pager, next, sizes"
-        @current-change="handlePageChange"
-        @size-change="handleSizeChange"
-      />
+      <el-pagination class="list-pager" background :current-page="page" :page-size="pageSize"
+        :page-sizes="[10, 20, 50, 100]" :total="total" layout="total, prev, pager, next, sizes"
+        @current-change="handlePageChange" @size-change="handleSizeChange" />
     </div>
 
     <!-- 新增/编辑共用弹窗 -->
@@ -387,21 +388,17 @@ onMounted(() => {
 
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="staff-form">
         <el-form-item label="姓名" prop="name">
-          <el-input v-model="form.name" size="large" placeholder="请输入姓名" />
+          <el-input v-model="form.name" size="" placeholder="请输入姓名" />
         </el-form-item>
         <el-form-item label="手机号" prop="phone">
-          <el-input v-model="form.phone" size="large" placeholder="请输入手机号" maxlength="11" />
+          <el-input v-model="form.phone" size="" placeholder="请输入手机号" maxlength="11" />
         </el-form-item>
         <el-form-item label="用户名" prop="username">
-          <el-input v-model="form.username" size="large" placeholder="请输入用户名" :disabled="isEdit" />
+          <el-input v-model="form.username" size="" placeholder="请输入用户名" :disabled="isEdit" />
         </el-form-item>
         <el-form-item :label="isEdit ? '重置密码' : '初始密码'">
-          <el-input
-            v-model="form.password"
-            size="large"
-            :placeholder="isEdit ? '无需重置可留空' : '留空默认 123456'"
-            show-password
-          />
+          <el-input v-model="form.password" size="" :placeholder="isEdit ? '无需重置可留空' : '留空默认 123456'"
+            show-password />
         </el-form-item>
         <el-form-item label="权限角色" prop="roleId">
           <el-select v-model="form.roleId" class="full-control" placeholder="请选择权限角色（单选）">
@@ -409,12 +406,8 @@ onMounted(() => {
           </el-select>
         </el-form-item>
         <el-form-item label="人员类型" prop="personType">
-          <el-select
-            v-model="form.personType"
-            class="full-control"
-            placeholder="请选择人员类型"
-            @change="handlePersonTypeChange"
-          >
+          <el-select v-model="form.personType" class="full-control" placeholder="请选择人员类型"
+            @change="handlePersonTypeChange">
             <el-option v-for="item in PERSON_TYPE_OPTIONS" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
@@ -424,24 +417,23 @@ onMounted(() => {
           </el-select>
         </el-form-item>
         <el-form-item v-else label="负责区域">
-          <el-input v-model="form.area" size="large" placeholder="如：东城区、朝阳区" />
+          <el-input v-model="form.area" size="" placeholder="如：东城区、朝阳区" />
         </el-form-item>
-        <el-form-item label="账号状态" class="full">
-          <el-switch v-model="form.status" :active-value="1" :inactive-value="0" active-text="允许员工登录系统" inline-prompt />
+        <el-form-item label="账号状态">
+          <div class="flex-between form-item">
+            <span>{{ form.status === 1 ? '允许' : '禁止' }}员工登录系统</span>
+            <el-switch v-model="form.status" :active-value="1" :inactive-value="0" active-text="允许" inactive-text="禁止"
+              inline-prompt />
+          </div>
         </el-form-item>
-        <el-alert
-          class="full staff-tip"
-          type="info"
-          :closable="false"
-          show-icon
-          title="权限与身份相互独立"
-          description="权限角色决定员工可以访问哪些菜单和接口；人员类型用于区分客服、陪诊师等员工业务身份，用户服务关系不在此处维护。"
-        />
+
+        <el-alert class="full staff-tip" type="info" :closable="false" show-icon title="权限与身份相互独立"
+          description="权限角色决定员工可以访问哪些菜单和接口；人员类型用于区分客服、陪诊师等员工业务身份，用户服务关系不在此处维护。" />
       </el-form>
 
       <template #footer>
-        <el-button size="large" @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" size="large" :loading="submitting" @click="handleSubmit">
+        <el-button size="" @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" size="" :loading="submitting" @click="handleSubmit">
           {{ isEdit ? '保存修改' : '确认新增' }}
         </el-button>
       </template>
@@ -477,32 +469,34 @@ onMounted(() => {
   border-radius: 10px;
 }
 
-.panel {
-  background: #fff;
-  border: 1px solid #eef0f4;
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05);
-}
+
 
 /* 筛选区 */
 .filter-card {
-  margin-top: 22px;
-  padding: 20px 22px;
+  margin-top: 20px;
+  padding: 20px;
 }
 
 .filter-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
 }
 
+.filter-row>div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .search-input {
-  width: 320px;
+  width: 250px;
   max-width: 100%;
 }
 
 .filter-select {
-  width: 180px;
+  width: 130px;
 }
 
 /* 列表 */
@@ -606,6 +600,18 @@ onMounted(() => {
 
 .staff-tip {
   margin-top: 4px;
+}
+
+.form-item {
+  width: 100%;
+  height: 32px;
+  box-shadow: 0 0 0 1px var(--el-border-color) inset;
+  border-radius: 5px;
+  padding: 0 12px;
+}
+
+.el-alert__description {
+  font-size: 13px;
 }
 </style>
 

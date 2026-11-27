@@ -6,7 +6,7 @@ import {
   updatePatientById,
   getDictOptions
 } from '../../../api/index.js'
-import { HEALTH_STATUS_OPTIONS } from '../utils.js'
+import { HEALTH_STATUS_OPTIONS } from '../../../utils/index.js'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },

@@ -17,6 +17,10 @@ const DOCTOR_ROLE_CODE = 'mobile_doctor'
 export const getHomePath = (role = '') => {
   if (role === 'pc_customer_service' || role === 'service') return '/serviceChatManage'
   if (role === 'pc_hospital_manager' || role === 'hospital') return '/hospitalManage/dashboard'
+  if (role === 'pc_department_manager' || role === 'department')
+    return '/hospitalManage/departmentDashboard'
+  if (role === 'pc_station' || role === 'pc_station_manager' || role === 'station')
+    return '/station/workbench'
   return '/dashboard'
 }
 
@@ -25,7 +29,9 @@ export const roleProfiles = {
   admin: { role: 'admin', label: '管理员', name: '系统管理员', loginName: 'admin', avatar: 'S' },
   doctor: { role: 'doctor', label: '医生', name: '李医生', loginName: 'doctor', avatar: '医' },
   service: { role: 'service', label: '客服人员', name: '客服小王', loginName: 'service', avatar: '客' },
-  hospital: { role: 'hospital', label: '医院管理', name: '医院管理员', loginName: 'hospital', avatar: '院' }
+  hospital: { role: 'hospital', label: '医院管理', name: '医院管理员', loginName: 'hospital', avatar: '院' },
+  department: { role: 'department', label: '科室管理', name: '科室管理员', loginName: 'deptadmin', avatar: '科' },
+  station: { role: 'station', label: '驻点管理', name: '驻点人员', loginName: 'admin3', avatar: '驻' }
 }
 
 const readStoredUser = () => {
@@ -75,7 +81,9 @@ export const useAuthStore = defineStore('auth', () => {
       admin: ['pc_admin'],
       doctor: ['mobile_doctor'],
       service: ['pc_customer_service'],
-      hospital: ['pc_hospital_manager']
+      hospital: ['pc_hospital_manager'],
+      department: ['pc_department_manager'],
+      station: ['pc_station', 'pc_station_manager']
     }
     return roleCodes.some((code) => (alias[code] || []).includes(role.value))
   }

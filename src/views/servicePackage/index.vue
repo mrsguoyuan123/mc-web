@@ -485,12 +485,7 @@ const openItems = (row) => {
   border-radius: 10px;
 }
 
-.panel {
-  background: #fff;
-  border: 1px solid #eef0f4;
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05);
-}
+
 
 /* 筛选区 */
 .filter-card {
@@ -509,7 +504,7 @@ const openItems = (row) => {
 }
 
 .search-input {
-  width: 320px;
+  width: 250px;
   max-width: 100%;
 }
 

@@ -235,8 +235,7 @@ const { page: daPage, pageSize: daSize, pagedData: pagedAudits, total: daTotal }
 
       <template #footer>
         <el-button size="large" @click="detailVisible = false">关闭</el-button>
-        <el-button v-if="current && ['待审核', '驻点审核中'].includes(current.auditStatus)"
-          type="primary" size="large" @click="approve(current)">审核通过</el-button>
+        
       </template>
     </el-dialog>
 
@@ -315,12 +314,7 @@ const { page: daPage, pageSize: daSize, pagedData: pagedAudits, total: daTotal }
   color: #9ca3af;
 }
 
-.panel {
-  background: #fff;
-  border: 1px solid #eef0f4;
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05);
-}
+
 
 /* 统计卡片 */
 .stats-grid {
@@ -362,7 +356,7 @@ const { page: daPage, pageSize: daSize, pagedData: pagedAudits, total: daTotal }
 
 /* 搜索与筛选 */
 .search-input {
-  width: 320px;
+  width: 250px;
   max-width: 100%;
 }
 

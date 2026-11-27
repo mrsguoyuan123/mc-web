@@ -258,12 +258,7 @@ const { page: schPage, pageSize: schSize, pagedData: pagedSchedules, total: schT
   color: #9ca3af;
 }
 
-.panel {
-  background: #fff;
-  border: 1px solid #eef0f4;
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05);
-}
+
 
 /* 统计卡片 */
 .stats-grid {

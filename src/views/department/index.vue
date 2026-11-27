@@ -226,7 +226,7 @@ const handleDelete = (row) => {
     } catch (err) {
       ElMessage.error(err?.message || '删除失败')
     }
-  }).catch(() => {})
+  }).catch(() => { })
 }
 
 onMounted(() => {
@@ -243,8 +243,10 @@ onMounted(() => {
         <h1>科室管理</h1>
         <p>维护医院科室字典信息</p>
       </div>
-      <el-button type="primary" size="large" @click="openAdd">
-        <el-icon><Plus /></el-icon>
+      <el-button type="primary" size="" @click="openAdd">
+        <el-icon>
+          <Plus />
+        </el-icon>
         添加科室
       </el-button>
     </div>
@@ -252,16 +254,19 @@ onMounted(() => {
     <!-- 统计卡片 -->
     <div class="stats-grid">
       <div v-for="item in stats" :key="item.label" class="panel stat-card">
+        <div class="stat-bottom">
+          <span class="stat-icon" :class="item.theme">
+            <el-icon>
+              <component :is="item.icon" />
+            </el-icon>
+          </span>
+
+        </div>
         <div class="stat-top">
           <span class="stat-label">{{ item.label }}</span>
           <span class="stat-value">{{ item.value }}<small>{{ item.unit }}</small></span>
         </div>
-        <div class="stat-bottom">
-          <span class="stat-icon" :class="item.theme">
-            <el-icon><component :is="item.icon" /></el-icon>
-          </span>
-          <span class="stat-desc">{{ item.desc }}</span>
-        </div>
+
       </div>
     </div>
 
@@ -269,27 +274,29 @@ onMounted(() => {
     <div class="panel filter-card">
       <div class="card-label">筛选条件</div>
       <div class="filter-row">
-        <el-input
-          v-model="keyword"
-          class="search-input"
-          size="large"
-          clearable
-          placeholder="搜索科室名称..."
-          @keyup.enter="handleSearch"
-          @clear="handleSearch"
-        >
-          <template #prefix>
-            <el-icon><Search /></el-icon>
-          </template>
-        </el-input>
-        <el-select v-model="filterCategory" class="filter-select" size="large" clearable placeholder="全部分类" @change="handleSearch">
-          <el-option v-for="category in categories" :key="category" :label="category" :value="category" />
-        </el-select>
-        <el-select v-model="filterHospitalId" class="filter-select" size="large" clearable placeholder="全部医院" @change="handleSearch">
-          <el-option v-for="hospital in hospitalOptions" :key="hospital.id" :label="hospital.name" :value="hospital.id" />
-        </el-select>
-        <el-button type="primary" size="large" @click="handleSearch">查询</el-button>
-        <el-button size="large" @click="handleReset">重置</el-button>
+        <div>
+          <el-input v-model="keyword" class="search-input" size="" clearable placeholder="搜索科室名称..."
+            @keyup.enter="handleSearch" @clear="handleSearch">
+            <template #prefix>
+              <el-icon>
+                <Search />
+              </el-icon>
+            </template>
+          </el-input>
+          <el-select v-model="filterCategory" class="filter-select" size="" clearable placeholder="全部分类"
+            @change="handleSearch">
+            <el-option v-for="category in categories" :key="category" :label="category" :value="category" />
+          </el-select>
+          <el-select v-model="filterHospitalId" class="filter-select" size="" clearable placeholder="全部医院"
+            @change="handleSearch">
+            <el-option v-for="hospital in hospitalOptions" :key="hospital.id" :label="hospital.name"
+              :value="hospital.id" />
+          </el-select>
+        </div>
+        <div>
+          <el-button type="primary" size="" @click="handleSearch">查询</el-button>
+          <el-button size="" @click="handleReset">重置</el-button>
+        </div>
       </div>
     </div>
 
@@ -330,10 +337,14 @@ onMounted(() => {
         <el-table-column label="操作" width="110" fixed="right" align="center">
           <template #default="{ row }">
             <el-tooltip content="编辑" placement="top">
-              <el-button type="primary" link @click="openEdit(row)"><el-icon><Edit /></el-icon></el-button>
+              <el-button type="primary" link @click="openEdit(row)"><el-icon>
+                  <Edit />
+                </el-icon></el-button>
             </el-tooltip>
             <el-tooltip content="删除" placement="top">
-              <el-button type="danger" link @click="handleDelete(row)"><el-icon><Delete /></el-icon></el-button>
+              <el-button type="danger" link @click="handleDelete(row)"><el-icon>
+                  <Delete />
+                </el-icon></el-button>
             </el-tooltip>
           </template>
         </el-table-column>
@@ -341,17 +352,9 @@ onMounted(() => {
           <el-empty description="暂无符合条件的科室" :image-size="90" />
         </template>
       </el-table>
-      <el-pagination
-        class="list-pager"
-        background
-        :current-page="page"
-        :page-size="pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, prev, pager, next, sizes"
-        @current-change="handlePageChange"
-        @size-change="handleSizeChange"
-      />
+      <el-pagination class="list-pager" background :current-page="page" :page-size="pageSize"
+        :page-sizes="[10, 20, 50, 100]" :total="total" layout="total, prev, pager, next, sizes"
+        @current-change="handlePageChange" @size-change="handleSizeChange" />
     </div>
     <!-- 添加/编辑弹窗 -->
     <el-dialog v-model="dialogVisible" width="640px" class="hospital-dialog" @closed="resetForm">
@@ -363,8 +366,8 @@ onMounted(() => {
       </template>
 
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="hospital-form">
-        <el-form-item label="科室名称" prop="name" class="full">
-          <el-input v-model="form.name" size="large" placeholder="请输入科室名称" />
+        <el-form-item label="科室名称" prop="name" >
+          <el-input v-model="form.name" size="" placeholder="请输入科室名称" />
         </el-form-item>
         <el-form-item label="科室分类" prop="category">
           <el-select v-model="form.category" class="full-control" placeholder="请选择分类">
@@ -372,40 +375,36 @@ onMounted(() => {
           </el-select>
         </el-form-item>
         <el-form-item label="所属医院" prop="hospitalId">
-          <el-select
-            v-model="form.hospitalId"
-            class="full-control"
-            placeholder="请选择所属医院"
-            @change="handleHospitalChange"
-          >
-            <el-option v-for="hospital in hospitalOptions" :key="hospital.id" :label="hospital.name" :value="hospital.id" />
+          <el-select v-model="form.hospitalId" class="full-control" placeholder="请选择所属医院"
+            @change="handleHospitalChange">
+            <el-option v-for="hospital in hospitalOptions" :key="hospital.id" :label="hospital.name"
+              :value="hospital.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="所属院区" prop="areaId">
+          
           <el-select v-model="form.areaId" class="full-control" clearable placeholder="请选择所属院区（可选）">
             <el-option v-for="area in formAreaOptions" :key="area.id" :label="area.name" :value="area.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="科室主任" prop="headDoctor">
-          <el-input v-model="form.headDoctor" size="large" placeholder="请输入科室主任姓名" />
+          <el-input v-model="form.headDoctor" size="" placeholder="请输入科室主任姓名" />
+        </el-form-item>
+         <el-form-item label="联系电话" prop="headDoctor">
+          <el-input v-model="form.phone" size="" placeholder="请输入联系电话" />
         </el-form-item>
         <el-form-item label="医生数量" prop="doctorCount">
-          <el-input-number v-model="form.doctorCount" :min="0" controls-position="right" class="full-control" placeholder="请输入医生数量" />
+          <el-input-number v-model="form.doctorCount" :min="0" controls-position="right" class="full-control"
+            placeholder="请输入医生数量" />
         </el-form-item>
         <el-form-item label="床位数量" prop="bedCount">
-          <el-input-number v-model="form.bedCount" :min="0" controls-position="right" class="full-control" placeholder="请输入床位数量" />
+          <el-input-number v-model="form.bedCount" :min="0" controls-position="right" class="full-control"
+            placeholder="请输入床位数量" />
         </el-form-item>
-        <el-form-item label="联系电话" prop="phone">
-          <el-input v-model="form.phone" size="large" placeholder="请输入联系电话" />
-        </el-form-item>
+       
         <el-form-item label="状态" prop="status">
           <el-select v-model="form.status" class="full-control">
-            <el-option
-              v-for="status in statuses"
-              :key="status"
-              :label="STATUS_TEXT[status]"
-              :value="status"
-            />
+            <el-option v-for="status in statuses" :key="status" :label="STATUS_TEXT[status]" :value="status" />
           </el-select>
         </el-form-item>
         <el-form-item label="科室简介" prop="description" class="full">
@@ -414,8 +413,8 @@ onMounted(() => {
       </el-form>
 
       <template #footer>
-        <el-button size="large" @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" size="large" :loading="submitting" @click="handleSubmit">
+        <el-button size="" @click="dialogVisible = false" class="mr-10">取消</el-button>
+        <el-button type="primary" size="" :loading="submitting" @click="handleSubmit">
           {{ isEdit ? '保存修改' : '确认添加' }}
         </el-button>
       </template>
@@ -451,12 +450,7 @@ onMounted(() => {
   border-radius: 10px;
 }
 
-.panel {
-  background: #fff;
-  border: 1px solid #eef0f4;
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05);
-}
+
 
 /* 统计卡片 */
 .stats-grid {
@@ -467,20 +461,23 @@ onMounted(() => {
 }
 
 .stat-card {
-  padding: 24px 28px;
-  border-radius: 20px;
+  padding: 20px;
+  border-radius: 10px;
+  display: flex;
+  gap: 10px
 }
 
 .stat-top {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  /* align-items: center; */
+  justify-content: flex-start;
 }
 
 .stat-label {
-  font-size: 15px;
-
+  font-size: 13px;
   color: #1f2937;
+  margin-bottom: 10px;
 }
 
 .stat-value {
@@ -492,7 +489,7 @@ onMounted(() => {
 
 .stat-value small {
   margin-left: 4px;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 400;
   color: #9ca3af;
 }
@@ -501,16 +498,16 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 26px;
+  /* margin-top: 26px; */
 }
 
 .stat-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
+  width: 45px;
+  height: 45px;
+  border-radius: 10px;
 }
 
 .stat-icon i {
@@ -522,10 +519,26 @@ onMounted(() => {
   height: 25px;
 }
 
-.stat-icon.blue { background: #e8f0ff; color: #4f6bff; }
-.stat-icon.green { background: #dcfce7; color: #16a34a; }
-.stat-icon.red { background: #fee2e2; color: #ef4444; }
-.stat-icon.cyan { background: #e0f2fe; color: #0284c7; }
+.stat-icon.blue {
+  background: #e8f0ff;
+  color: #4f6bff;
+}
+
+.stat-icon.green {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.stat-icon.red {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.stat-icon.cyan {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
 
 .stat-desc {
   margin-top: 14px;
@@ -535,8 +548,8 @@ onMounted(() => {
 
 /* 筛选区 */
 .filter-card {
-  margin-top: 22px;
-  padding: 20px 22px;
+  margin-top: 20px;
+  padding: 20px;
 }
 
 .card-label {
@@ -548,22 +561,27 @@ onMounted(() => {
 .filter-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
 }
-
+.filter-row>div{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .search-input {
-  width: 320px;
+  width: 250px;
   max-width: 100%;
 }
 
 .filter-select {
-  width: 180px;
+  width: 150px;
 }
 
 /* 列表 */
 .table-card {
-  margin-top: 22px;
-  padding: 22px;
+  margin-top: 20px;
+  padding: 20px;
 }
 
 .table-head {
@@ -664,18 +682,20 @@ onMounted(() => {
     grid-column: 1;
   }
 }
-.el-button+.el-button{
+
+.el-button+.el-button {
   margin-left: 0;
 }
-.el-button{
-  font-weight: bold;
+
+.el-button {
+  /* font-weight: bold; */
 }
 </style>
 <style>
 /* 弹窗 teleport 至 body，需用全局样式 */
 .el-dialog.hospital-dialog {
   --el-color-primary: #2563eb;
-  border-radius: 16px;
+  border-radius: 10px;
   overflow: hidden;
 }
 </style>

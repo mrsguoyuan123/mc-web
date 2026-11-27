@@ -398,7 +398,7 @@ async function saveForm(savedStatus) {
 }
 
 /* ============================ 查询 / 重置 ============================ */
-function onSearch() {}
+function onSearch() { }
 function onReset() {
   Object.assign(query, { keyword: '', terminal: '', scene: '', role: '', status: '', creator: '', disease: '' })
 }
@@ -415,7 +415,9 @@ onMounted(fetchList)
         <p class="header-sub">管理电脑端和小程序常用回复模板，并按疾病标签精准匹配用户。</p>
       </div>
       <el-button type="primary" class="btn-dark" @click="openCreate">
-        <el-icon><Plus /></el-icon>新增模板
+        <el-icon>
+          <Plus />
+        </el-icon>新增模板
       </el-button>
     </div>
 
@@ -446,46 +448,51 @@ onMounted(fetchList)
     <!-- 筛选区 -->
     <div class="panel filter-panel">
       <div class="filter-row">
-        <el-input v-model="query.keyword" placeholder="搜索模板名称、回复内容、关联问题或疾病标签..." clearable class="kw-input" @keyup.enter="onSearch" />
-        <el-select v-model="query.terminal" placeholder="全部适用端" clearable>
-          <el-option v-for="o in TERMINAL_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
-        </el-select>
-        <el-select v-model="query.scene" placeholder="全部场景" clearable>
-          <el-option v-for="o in SCENE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
-        </el-select>
-        <el-select v-model="query.role" placeholder="全部角色" clearable>
-          <el-option v-for="o in ROLE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
-        </el-select>
-        <el-select v-model="query.status" placeholder="全部状态" clearable>
-          <el-option v-for="o in STATUS_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
-        </el-select>
-        <el-select v-model="query.creator" placeholder="全部创建人" clearable />
+        <div>
+          <el-input v-model="query.keyword" placeholder="搜索模板名称、回复内容、关联问题或疾病标签..." clearable class="kw-input"
+            @keyup.enter="onSearch" />
+          <el-select v-model="query.terminal" placeholder="全部适用端" clearable>
+            <el-option v-for="o in TERMINAL_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+          </el-select>
+          <el-select v-model="query.scene" placeholder="全部场景" clearable>
+            <el-option v-for="o in SCENE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+          </el-select>
+          <el-select v-model="query.role" placeholder="全部角色" clearable>
+            <el-option v-for="o in ROLE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+          </el-select>
+          <el-select v-model="query.status" placeholder="全部状态" clearable>
+            <el-option v-for="o in STATUS_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+          </el-select>
+          <el-select v-model="query.creator" placeholder="全部创建人" clearable />
+        </div>
+        <div class="filter-actions">
+          <el-button @click="onReset"><el-icon>
+              <RefreshLeft />
+            </el-icon>重置</el-button>
+          <el-button type="primary" @click="onSearch"><el-icon>
+              <Search />
+            </el-icon>查询</el-button>
+        </div>
       </div>
-      <div class="filter-actions">
-        <el-button @click="onReset"><el-icon><RefreshLeft /></el-icon>重置</el-button>
-        <el-button type="primary" @click="onSearch"><el-icon><Search /></el-icon>查询</el-button>
-      </div>
+
     </div>
 
     <!-- 疾病标签栏 -->
     <div class="panel disease-bar">
       <div class="disease-left">
         <span class="disease-title">疾病标签</span>
-        <el-tag :type="query.disease === '' ? 'primary' : 'info'" round size="small" class="disease-tag" @click="query.disease = ''">
+        <el-tag :type="query.disease === '' ? 'primary' : 'info'" round size="small" class="disease-tag"
+          @click="query.disease = ''">
           全部模板 {{ stats.total }}
         </el-tag>
-        <el-tag
-          v-for="d in diseaseGroups"
-          :key="d.name"
-          :type="query.disease === d.name ? 'primary' : 'info'"
-          round size="small"
-          class="disease-tag"
-          @click="query.disease = query.disease === d.name ? '' : d.name"
-        >
+        <el-tag v-for="d in diseaseGroups" :key="d.name" :type="query.disease === d.name ? 'primary' : 'info'" round
+          size="small" class="disease-tag" @click="query.disease = query.disease === d.name ? '' : d.name">
           {{ d.name }} {{ d.count }}
         </el-tag>
         <el-dropdown v-if="diseaseGroups.length > 6" trigger="click">
-          <el-tag round size="small" class="disease-tag">更多疾病<el-icon><ArrowDown /></el-icon></el-tag>
+          <el-tag round size="small" class="disease-tag">更多疾病<el-icon>
+              <ArrowDown />
+            </el-icon></el-tag>
         </el-dropdown>
       </div>
       <el-link type="primary" :underline="false">前往字典维护 →</el-link>
@@ -503,11 +510,15 @@ onMounted(fetchList)
           <el-button size="small" @click="batchDisable">批量停用</el-button>
           <el-button size="small">设置疾病标签</el-button>
           <el-dropdown trigger="click">
-            <el-button size="small" type="primary" plain>按使用次数<el-icon><ArrowDown /></el-icon></el-button>
+            <el-button size="small" type="primary" plain>按使用次数<el-icon>
+                <ArrowDown />
+              </el-icon></el-button>
           </el-dropdown>
         </div>
         <el-dropdown v-else trigger="click">
-          <el-button size="small" plain>按使用次数<el-icon><ArrowDown /></el-icon></el-button>
+          <el-button size="small" plain>按使用次数<el-icon>
+              <ArrowDown />
+            </el-icon></el-button>
         </el-dropdown>
       </div>
 
@@ -527,7 +538,8 @@ onMounted(fetchList)
         </el-table-column>
         <el-table-column label="模板场景" min-width="110">
           <template #default="{ row }">
-            <el-tag round size="small" type="warning" effect="plain">{{ labelOf(SCENE_OPTIONS, row.surgeryType) }}</el-tag>
+            <el-tag round size="small" type="warning" effect="plain">{{ labelOf(SCENE_OPTIONS, row.surgeryType)
+              }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="适用端" min-width="90">
@@ -539,7 +551,8 @@ onMounted(fetchList)
         </el-table-column>
         <el-table-column label="适用角色" min-width="130">
           <template #default="{ row }">
-            <el-tag v-for="r in row.roleList" :key="r" round size="small" effect="plain">{{ labelOf(ROLE_OPTIONS, r) }}</el-tag>
+            <el-tag v-for="r in row.roleList" :key="r" round size="small" effect="plain">{{ labelOf(ROLE_OPTIONS, r)
+              }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="使用次数" prop="usageCount" width="90" />
@@ -550,13 +563,23 @@ onMounted(fetchList)
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right" label-class-name="operation-header-cell">
           <template #default="{ row }">
-            <el-button text size="small" @click="openView(row)"><el-icon><View /></el-icon></el-button>
-            <el-button text size="small" @click="onCopyRow(row)"><el-icon><CopyDocument /></el-icon></el-button>
-            <el-button text size="small" @click="openEdit(row)"><el-icon><EditPen /></el-icon></el-button>
-            <el-button text size="small" @click="toggleStatus(row)"><el-icon><Switch /></el-icon></el-button>
-            <el-button text size="small" class="danger" @click="onDelete(row)"><el-icon><Delete /></el-icon></el-button>
+            <el-button text size="small" @click="openView(row)"><el-icon>
+                <View />
+              </el-icon></el-button>
+            <el-button text size="small" @click="onCopyRow(row)"><el-icon>
+                <CopyDocument />
+              </el-icon></el-button>
+            <el-button text size="small" @click="openEdit(row)"><el-icon>
+                <EditPen />
+              </el-icon></el-button>
+            <el-button text size="small" @click="toggleStatus(row)"><el-icon>
+                <Switch />
+              </el-icon></el-button>
+            <el-button text size="small" class="danger" @click="onDelete(row)"><el-icon>
+                <Delete />
+              </el-icon></el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -577,7 +600,8 @@ onMounted(fetchList)
 
       <div class="dialog-body">
         <!-- 左侧表单 -->
-        <el-form ref="dialogRef" :model="form" :rules="formRules" label-position="top" class="dialog-form" :disabled="isView">
+        <el-form ref="dialogRef" :model="form" :rules="formRules" label-position="top" class="dialog-form"
+          :disabled="isView">
           <div class="form-two-col">
             <el-form-item label="模板名称 *" prop="name">
               <el-input v-model="form.name" placeholder="请输入模板名称" :disabled="isView" />
@@ -595,15 +619,8 @@ onMounted(fetchList)
               <el-checkbox v-model="form.universal" :disabled="isView">通用模板</el-checkbox>
             </div>
             <div class="disease-chip-box">
-              <el-tag
-                v-for="d in DISEASE_OPTIONS"
-                :key="d"
-                :type="form.diseases.includes(d) ? 'primary' : 'info'"
-                round
-                size="small"
-                class="pick-chip"
-                @click="!isView && toggleDisease(d)"
-              >{{ d }}</el-tag>
+              <el-tag v-for="d in DISEASE_OPTIONS" :key="d" :type="form.diseases.includes(d) ? 'primary' : 'info'" round
+                size="small" class="pick-chip" @click="!isView && toggleDisease(d)">{{ d }}</el-tag>
             </div>
             <div class="field-tip">标签来源：字典维护 - 疾病字典，当前页面不能新建疾病名称。</div>
           </el-form-item>
@@ -625,7 +642,9 @@ onMounted(fetchList)
             <div class="question-list">
               <div v-for="q in form.questions" :key="q" class="question-item">
                 <span>{{ q }}</span>
-                <el-icon v-if="!isView" class="question-close" @click="removeQuestion(q)"><Close /></el-icon>
+                <el-icon v-if="!isView" class="question-close" @click="removeQuestion(q)">
+                  <Close />
+                </el-icon>
               </div>
             </div>
             <div v-if="!isView" class="question-add">
@@ -635,7 +654,8 @@ onMounted(fetchList)
           </el-form-item>
 
           <el-form-item label="回复模板内容 *" prop="content">
-            <el-input v-model="form.content" type="textarea" :rows="5" placeholder="支持变量占位，如{{用户姓名}}、{{科室名称}}" :disabled="isView" />
+            <el-input v-model="form.content" type="textarea" :rows="5" placeholder="支持变量占位，如{{用户姓名}}、{{科室名称}}"
+              :disabled="isView" />
           </el-form-item>
 
           <div class="form-two-col">
@@ -654,8 +674,12 @@ onMounted(fetchList)
         <div class="dialog-preview">
           <div class="preview-tabs">
             <el-radio-group v-model="previewTab" size="small">
-              <el-radio-button value="PC"><el-icon><Monitor /></el-icon>电脑端预览</el-radio-button>
-              <el-radio-button value="MINI_PROGRAM"><el-icon><Cellphone /></el-icon>小程序预览</el-radio-button>
+              <el-radio-button value="PC"><el-icon>
+                  <Monitor />
+                </el-icon>电脑端预览</el-radio-button>
+              <el-radio-button value="MINI_PROGRAM"><el-icon>
+                  <Cellphone />
+                </el-icon>小程序预览</el-radio-button>
             </el-radio-group>
           </div>
 
@@ -692,18 +716,29 @@ onMounted(fetchList)
           </div>
 
           <div class="preview-priority">
-            <div class="pp-title"><el-icon><MagicStick /></el-icon>模板匹配优先级</div>
+            <div class="pp-title"><el-icon>
+                <MagicStick />
+              </el-icon>模板匹配优先级</div>
             <div class="pp-item">
               <span class="pp-no">1</span>
-              <div><div class="pp-name">疾病完全匹配模板</div><div class="pp-sub">妇科 + 轻度贫血</div></div>
+              <div>
+                <div class="pp-name">疾病完全匹配模板</div>
+                <div class="pp-sub">妇科 + 轻度贫血</div>
+              </div>
             </div>
             <div class="pp-item">
               <span class="pp-no">2</span>
-              <div><div class="pp-name">同疾病分类模板</div><div class="pp-sub">妇科 / 产科</div></div>
+              <div>
+                <div class="pp-name">同疾病分类模板</div>
+                <div class="pp-sub">妇科 / 产科</div>
+              </div>
             </div>
             <div class="pp-item">
               <span class="pp-no">3</span>
-              <div><div class="pp-name">通用模板</div><div class="pp-sub">所有用户可用</div></div>
+              <div>
+                <div class="pp-name">通用模板</div>
+                <div class="pp-sub">所有用户可用</div>
+              </div>
             </div>
           </div>
         </div>
@@ -730,59 +765,214 @@ onMounted(fetchList)
   color: #1f2937;
   padding: 4px;
 }
-.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; }
-.page-header h1 { margin: 0; font-size: 24px; font-weight: 700; }
-.header-sub { margin: 8px 0 0; font-size: 13px; color: #9ca3af; }
-.btn-dark { font-weight: 600; }
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 22px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.header-sub {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.btn-dark {
+  font-weight: 600;
+}
 
 /* 统计卡片 */
-.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 22px; }
-.stat-card {
-  background: #fff; border: 1px solid #eef0f4; border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05); padding: 20px 22px;
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-bottom: 22px;
 }
-.stat-label { font-size: 13px; color: #6b7280; }
-.stat-value { margin: 10px 0 6px; font-size: 28px; font-weight: 700; }
-.stat-value.green { color: #16a34a; }
-.stat-value.orange { color: #ea580c; }
-.stat-foot { font-size: 12px; color: #9ca3af; }
 
-.panel {
-  background: #fff; border: 1px solid #eef0f4; border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05); padding: 18px 22px; margin-bottom: 18px;
+.stat-card {
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05);
+  padding: 20px 22px;
 }
+
+.stat-label {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.stat-value {
+  margin: 10px 0 6px;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.stat-value.green {
+  color: #16a34a;
+}
+
+.stat-value.orange {
+  color: #ea580c;
+}
+
+.stat-foot {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+
 
 /* 筛选 */
-.filter-row { display: flex; gap: 12px; flex-wrap: wrap; }
-.filter-row .el-select { width: 150px; }
-.kw-input { flex: 1; min-width: 260px; }
-.filter-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
+.filter-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.filter-row .el-select {
+  width: 150px;
+}
+
+.kw-input {
+  flex: 1;
+  min-width: 260px;
+}
+
+.filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+  width: 100%;
+}
 
 /* 疾病标签栏 */
-.disease-bar { display: flex; justify-content: space-between; align-items: center; }
-.disease-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.disease-title { font-size: 14px; font-weight: 600; margin-right: 6px; }
-.disease-tag { cursor: pointer; }
+.disease-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.disease-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.disease-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.disease-tag {
+  cursor: pointer;
+}
 
 /* 表格 */
-.table-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-.table-title { font-size: 15px; font-weight: 600; }
-.table-title .count { font-size: 12px; color: #9ca3af; font-weight: 400; margin-left: 6px; }
-.batch-bar { font-size: 13px; color: #6b7280; display: flex; align-items: center; gap: 8px; }
-.tpl-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
-.tpl-content { font-size: 12px; color: #6b7280; line-height: 1.6; }
-.disease-chip { margin: 2px 4px 2px 0; }
-.muted { color: #9ca3af; }
-.danger :deep(.el-icon) { color: #dc2626; }
-.pager { display: flex; justify-content: flex-end; margin-top: 14px; font-size: 13px; color: #6b7280; }
+.table-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
 
-.form-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
-.dialog-heading h3 { margin: 0; font-size: 17px; font-weight: 700; }
-.dialog-heading p { margin: 6px 0 0; font-size: 13px; color: #9ca3af; }
+.table-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.table-title .count {
+  font-size: 12px;
+  color: #9ca3af;
+  font-weight: 400;
+  margin-left: 6px;
+}
+
+.batch-bar {
+  font-size: 13px;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tpl-name {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.tpl-content {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+.disease-chip {
+  margin: 2px 4px 2px 0;
+}
+
+.muted {
+  color: #9ca3af;
+}
+
+.danger :deep(.el-icon) {
+  color: #dc2626;
+}
+
+.table-panel :deep(.operation-header-cell) {
+  background-color: #f8fafc !important;
+}
+
+.pager {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.form-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 18px;
+}
+
+.dialog-heading h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.dialog-heading p {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #9ca3af;
+}
 
 /* 弹窗双栏 */
-.dialog-body { display: grid; grid-template-columns: 1fr 380px; gap: 24px; }
-.dialog-form { min-width: 0; }
+.dialog-body {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 24px;
+}
+
+.dialog-form {
+  min-width: 0;
+}
+
 .dialog-preview {
   background: #f7f8fa;
   border-radius: 12px;
@@ -793,80 +983,274 @@ onMounted(fetchList)
   max-height: 60vh;
   overflow-y: auto;
 }
-.disease-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.form-label { font-size: 13px; font-weight: 500; color: #374151; }
-.disease-chip-box { display: flex; flex-wrap: wrap; gap: 8px; }
-.pick-chip { cursor: pointer; }
-.field-tip { margin-top: 8px; font-size: 12px; color: #9ca3af; }
 
-.question-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.disease-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.disease-chip-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pick-chip {
+  cursor: pointer;
+}
+
+.field-tip {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.question-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
 .question-item {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 8px 12px; background: #fff; border: 1px solid #eef0f4; border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 8px;
   font-size: 13px;
 }
-.question-close { color: #9ca3af; cursor: pointer; }
-.question-close:hover { color: #dc2626; }
-.question-add { display: flex; gap: 10px; }
-.question-add .el-input { flex: 1; }
+
+.question-close {
+  color: #9ca3af;
+  cursor: pointer;
+}
+
+.question-close:hover {
+  color: #dc2626;
+}
+
+.question-add {
+  display: flex;
+  gap: 10px;
+}
+
+.question-add .el-input {
+  flex: 1;
+}
 
 /* 右侧预览 */
-.preview-tabs { display: flex; justify-content: center; }
-.preview-user { background: #fff; border-radius: 12px; padding: 14px 16px; }
-.pu-title { font-size: 12px; color: #9ca3af; margin-bottom: 6px; }
-.pu-name { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
-.pu-chip { margin-right: 6px; }
-.preview-chat { background: #fff; border-radius: 12px; padding: 16px; }
-.chat-row { display: flex; gap: 10px; margin-bottom: 12px; }
+.preview-tabs {
+  display: flex;
+  justify-content: center;
+}
+
+.preview-user {
+  background: #fff;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.pu-title {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-bottom: 6px;
+}
+
+.pu-name {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.pu-chip {
+  margin-right: 6px;
+}
+
+.preview-chat {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.chat-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
 .chat-avatar {
-  width: 36px; height: 36px; border-radius: 50%;
-  background: #e0e7ff; color: #2563eb; font-weight: 600;
-  display: flex; align-items: center; justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #e0e7ff;
+  color: #2563eb;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.chat-name { font-size: 13px; font-weight: 600; }
-.chat-sub { font-size: 12px; color: #9ca3af; }
+
+.chat-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.chat-sub {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
 .chat-bubble {
-  background: #2563eb; color: #fff; border-radius: 12px 12px 12px 2px;
-  padding: 12px 14px; font-size: 13px; line-height: 1.7; margin-left: 46px;
+  background: #2563eb;
+  color: #fff;
+  border-radius: 12px 12px 12px 2px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.7;
+  margin-left: 46px;
 }
-.chat-tip { margin-top: 10px; font-size: 11px; color: #9ca3af; text-align: right; }
-.preview-priority { background: #fff; border-radius: 12px; padding: 14px 16px; }
-.pp-title { font-size: 13px; font-weight: 600; margin-bottom: 12px; display: flex; gap: 6px; align-items: center; }
-.pp-item { display: flex; gap: 10px; padding: 8px 0; }
+
+.chat-tip {
+  margin-top: 10px;
+  font-size: 11px;
+  color: #9ca3af;
+  text-align: right;
+}
+
+.preview-priority {
+  background: #fff;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.pp-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.pp-item {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+}
+
 .pp-no {
-  width: 20px; height: 20px; border-radius: 50%; background: #eff6ff; color: #2563eb;
-  font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
-.pp-name { font-size: 13px; font-weight: 500; }
-.pp-sub { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+
+.pp-name {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.pp-sub {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-top: 2px;
+}
 
 /* 小程序手机壳预览 */
-.mini-phone { display: flex; justify-content: center; }
+.mini-phone {
+  display: flex;
+  justify-content: center;
+}
+
 .mini-screen {
-  width: 220px; background: #f2f3f5; border: 3px solid #1f2937; border-radius: 26px;
-  padding: 12px 12px 24px; min-height: 300px;
+  width: 220px;
+  background: #f2f3f5;
+  border: 3px solid #1f2937;
+  border-radius: 26px;
+  padding: 12px 12px 24px;
+  min-height: 300px;
 }
+
 .mini-header {
-  background: #2563eb; color: #fff; text-align: center; font-size: 14px; font-weight: 600;
-  padding: 10px 0; border-radius: 12px 12px 4px 4px; margin: -12px -12px 12px;
+  background: #2563eb;
+  color: #fff;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 0;
+  border-radius: 12px 12px 4px 4px;
+  margin: -12px -12px 12px;
 }
-.mini-time { text-align: center; font-size: 11px; color: #9ca3af; margin-bottom: 12px; }
-.mini-row { display: flex; gap: 8px; align-items: flex-start; }
+
+.mini-time {
+  text-align: center;
+  font-size: 11px;
+  color: #9ca3af;
+  margin-bottom: 12px;
+}
+
+.mini-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
 .mini-avatar {
-  width: 30px; height: 30px; border-radius: 50%; background: #dbeafe; color: #2563eb;
-  display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #dbeafe;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
 }
+
 .mini-bubble {
-  background: #fff; border-radius: 4px 12px 12px 12px; padding: 10px 12px;
-  font-size: 12px; line-height: 1.7; color: #1f2937; flex: 1;
+  background: #fff;
+  border-radius: 4px 12px 12px 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #1f2937;
+  flex: 1;
 }
 
 @media (max-width: 1100px) {
-  .stat-row { grid-template-columns: repeat(2, 1fr); }
-  .dialog-body { grid-template-columns: 1fr; }
+  .stat-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dialog-body {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
 
 <style>
-.el-dialog.tpl-dialog { --el-color-primary: #2563eb; border-radius: 16px; overflow: hidden; }
+.el-dialog.tpl-dialog {
+  --el-color-primary: #2563eb;
+  border-radius: 16px;
+  overflow: hidden;
+}
 </style>

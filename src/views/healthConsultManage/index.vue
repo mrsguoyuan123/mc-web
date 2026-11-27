@@ -268,12 +268,7 @@ const { page: hcPage, pageSize: hcSize, pagedData: pagedConsults, total: hcTotal
   color: #9ca3af;
 }
 
-.panel {
-  background: #fff;
-  border: 1px solid #eef0f4;
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(31, 45, 80, 0.05);
-}
+
 
 /* 顶部统计：整卡四列 */
 .today-grid {
@@ -343,7 +338,7 @@ const { page: hcPage, pageSize: hcSize, pagedData: pagedConsults, total: hcTotal
 }
 
 .search-input {
-  width: 320px;
+  width: 250px;
   max-width: 100%;
 }
 
